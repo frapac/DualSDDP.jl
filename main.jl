@@ -23,17 +23,18 @@ initdual!(sddpdual)
 
 ### SDDP DUAL ####
 # Run 1 combined iteration to init cuts in sddpdual
-for iter in 1:1
+for iter in 1:20
     SDDP.iteration!(sddpprimal, sddpdual)
 end
 
 ### RUN iterations in dual
 lbdual = Float64[]
 println("RUN DUAL SDDP")
+lb = updateinitialstate!(sddpdual, [40. for i in 1:N_DAMS])
 tic()
 for iter in 1:MAXIT
     # Update initial costate
-    lb = updateinitialstate!(sddpdual, [40.])
+    lb = updateinitialstate!(sddpdual, [40. for i in 1:N_DAMS])
     # Run forward an backward pass
     SDDP.iteration!(sddpdual)
 

@@ -5,7 +5,7 @@
 ################################################################################
 # Specify the valley to consider:
 # "dam2" "dam3" "dam4" "dam5" "dam6" "dam8" "damX" "damXII" "damRC1" "damRC2"
-const VALLEY = "dam1"
+const VALLEY = "dam3"
 
 # Directory storing the data:
 DATA_SOURCE = "data/$VALLEY"
@@ -20,7 +20,7 @@ const LINEAR_COST = true
 ################################################################################
 # Number of timesteps (as we manage the dams over a year, it is equal to the
 # number of months):
-const TF = 3
+const TF = 13
 
 # Capacity of dams:
 const STOCK_MAX = 80
