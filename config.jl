@@ -5,7 +5,7 @@
 ################################################################################
 # Specify the valley to consider:
 # "dam2" "dam3" "dam4" "dam5" "dam6" "dam8" "damX" "damXII" "damRC1" "damRC2"
-const VALLEY = "dam3"
+const VALLEY = "dam4"
 
 # Directory storing the data:
 DATA_SOURCE = "data/$VALLEY"
@@ -27,7 +27,7 @@ const STOCK_MAX = 80
 const STOCK_MIN = 0
 
 # Target for dam3, dam4, dam5, dam6:
-const STOCK0 = 40
+const STOCK0 = 40.
 
 # Specify the maximum flow that could be turbined:
 const CONTROL_MAX = 40
@@ -63,5 +63,4 @@ const CONFIDENCE_LEVEL = .975
 const UPPER_BOUND = 0
 # Prune cuts every %% iterations:
 const PRUNE_CUTS = 100
-
 

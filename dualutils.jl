@@ -10,7 +10,7 @@ function buildual_dam1(laws)
     # Damsvalley configuration:
     x0 = [-3156.06 for i in 1:N_DAMS]
 
-    x_bounds = [(-1e9, 1e9) for i in 1:N_DAMS];
+    x_bounds = [(-1e4, 1e4) for i in 1:N_DAMS];
     u_bounds = [(-Inf, 0) for i in 1:7*N_DAMS]
 
     B = - [1. 1.]
@@ -93,10 +93,10 @@ function build_model_dual(model, param, t)
     w = collect(law[t].support[:, :])
     πp = law[t].proba
 
-    @variable(m, model.xlim[i,t][1] <= x[i=1:nx] <= model.xlim[i,t][2])
+    @variable(m,  x[i=1:nx] )
     @variable(m, model.ulim[i,t][1] <= u[i=1:nu, j=1:ns] <=  model.ulim[i,t][2])
     @variable(m, xf[i=1:nx, j=1:ns])
-    @variable(m, alpha[1:ns])
+    @variable(m, alpha[1:ns] >= 0)
 
     m.ext[:cons] = @constraint(m, state_constraint, x .== 0)
 
@@ -143,7 +143,7 @@ function dualbound(sddpdual, x)
     m = Model(solver=sddpdual.params.SOLVER)
 
     @variable(m, θ)
-    p = @variable(m, p[1:sddpdual.spmodel.dimStates])
+    p = @variable(m, -10e4 <= p[1:sddpdual.spmodel.dimStates] <= 0)
 
     for i in 1:V.numCuts
         lambda = vec(V.lambdas[i, :])
@@ -151,7 +151,12 @@ function dualbound(sddpdual, x)
     end
 
     @objective(m, Min, θ - dot(x, p))
-    solve(m)
+    status = solve(m)
+    if status != :Optimal
+        println(m)
+        println(getvalue(p))
+        error("Bang")
+    end
     return getobjectivevalue(m), getvalue(p)
 end
 
@@ -160,8 +165,33 @@ end
 function updateinitialstate!(sddpdual, x)
     lb, p0 = dualbound(sddpdual, x)
     sddpdual.spmodel.initialState = p0
+    # sometimes lower bound is NaN
+    #= if isnan(lb) =#
+    #=     lb = getlowerbound(sddpdual, p0) - dot(x, p0) =#
+    #= end =#
     return lb
 end
+
+
+"""Get lowerbound if NaN"""
+function getlowerbound(sddpdual, p)
+
+    Vt = sddpdual.bellmanfunctions[1]
+
+    m = Model(solver=sddpdual.params.SOLVER)
+    @variable(m, alpha)
+
+    for i in 1:Vt.numCuts
+        lambda = vec(Vt.lambdas[i, :])
+        @constraint(m, Vt.betas[i] + dot(lambda, p) <= alpha)
+    end
+
+    @objective(m, Min, alpha)
+    solve(m)
+    return getvalue(alpha)
+end
+
+
 
 function display(it, lb)
     print("Pass n\° ", it)
