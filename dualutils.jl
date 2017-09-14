@@ -1,61 +1,9 @@
 # Write dual version of problems in problem.jl
 
-#------------------------------
-# 1 dam valley
-#------------------------------
-"""Build dual problem of `dam1`."""
-function buildual_dam1(laws)
+X0 = [STOCK0 for i in 1:N_DAMS]
 
 
-    # Damsvalley configuration:
-    x0 = [-3156.06 for i in 1:N_DAMS]
-
-    x_bounds = [(-1e4, 1e4) for i in 1:N_DAMS];
-    u_bounds = [(-Inf, 0) for i in 1:7*N_DAMS]
-
-    B = - [1. 1.]
-    # Discretization of controls for assessment:
-    DU = [10, 8]
-
-    D = [1; -1; -1; 1; 0; 0; 0]
-    E = [0 0; 0 0; 1 1; -1 -1; 1 0; -1 0; 0 -1]
-
-    # write dual dynamic
-    function dynamic(t, x, u, w)
-        return 0.
-    end
-
-    function constdual(t, x, u, w)
-        return 0.
-    end
-
-    function cost_t(t, x, u, w)
-        return 0.
-    end
-
-    model = SDDP.LinearSPModel(TF,       # number of timestep
-                               u_bounds, # control bounds
-                               STOCK_TARGET,       # initial state
-                               cost_t,   # cost function
-                               dynamic,  # dynamic function
-                               laws,
-                               info=:DH,
-                               eqconstr=constdual
-                              )
-    SDDP.set_state_bounds(model, x_bounds)
-    return model
-end
-
-
-function getmatrix(t)
-    B = - [1. 1.]
-    D = [1; -1; -1; 1; 0; 0; 0]
-    E = [0 0; 0 0; 1 1; -1 -1; 1 0; -1 0; 0 -1]
-    c = [-COST[t]; 0]
-
-    return B, D, E, c
-end
-
+"""Build matrix corresponding to the damsvalley"""
 function getmatrix(ndams, t)
     I = eye(ndams)
     O = zeros(Float64, ndams, ndams)
@@ -74,6 +22,32 @@ function getmatrix(ndams, t)
 
 
     return A, B, D, E, c
+end
+
+
+"""Build dual problem of `dam1`."""
+function buildual_dam1(laws)
+    # Damsvalley configuration:
+    x0 = [-3156.06 for i in 1:N_DAMS]
+    x_bounds = [(-1e4, 1e4) for i in 1:N_DAMS];
+    u_bounds = [(-Inf, 0) for i in 1:7*N_DAMS]
+
+    # write dual dynamic
+    dynamic(t, x, u, w) = 0.
+    constdual(t, x, u, w) = 0.
+    cost_t(t, x, u, w) = 0.
+
+    model = SDDP.LinearSPModel(TF,       # number of timestep
+                               u_bounds, # control bounds
+                               x0,       # initial state
+                               cost_t,   # cost function
+                               dynamic,  # dynamic function
+                               laws,
+                               info=:DH,
+                               eqconstr=constdual
+                              )
+    SDDP.set_state_bounds(model, x_bounds)
+    return model
 end
 
 
@@ -165,10 +139,6 @@ end
 function updateinitialstate!(sddpdual, x)
     lb, p0 = dualbound(sddpdual, x)
     sddpdual.spmodel.initialState = p0
-    # sometimes lower bound is NaN
-    #= if isnan(lb) =#
-    #=     lb = getlowerbound(sddpdual, p0) - dot(x, p0) =#
-    #= end =#
     return lb
 end
 

@@ -10,8 +10,12 @@
 using JuMP, StochDynamicProgramming, Clp, Gurobi
 const SDDP = StochDynamicProgramming
 
+# solver
+using Gurobi
+SOLVER = Gurobi.GurobiSolver(OutputFlag=false, Threads=1)
+
+# problem
 include("config.jl")
-include("problem.jl")
 include("dualutils.jl")
 
 srand(1111)
@@ -42,24 +46,27 @@ end
 function build_model()
     srand(1111)
     laws = build_noiselaws();
+    i = ones(Float64, N_DAMS)
+    c = vcat(-i, 0*i)
+
+    A, B, D, E, _ = getmatrix(N_DAMS, 1)
+    dynamic(t, x, u, w) = x + B*u + w
+    cost_t(t, x, u, w) = COST[t] * dot(c, u)
 
     # Build bounds:
-    x_bounds = X_BOUNDS
-    u_bounds = U_BOUNDS
-    # Define target for stock:
-    x0 = STOCK_TARGET
+    x_bounds = [(STOCK_MIN, STOCK_MAX) for i in 1:N_DAMS];
+    u_bounds = vcat([(CONTROL_MIN, CONTROL_MAX) for i in 1:N_DAMS], [(0., Inf) for i in 1:N_DAMS]);
 
     model = SDDP.LinearSPModel(TF,       # number of timestep
                                u_bounds, # control bounds
-                               x0,       # initial state
+                               X0,       # initial state
                                cost_t,   # cost function
                                dynamic,  # dynamic function
                                laws,
                               )
     SDDP.set_state_bounds(model, x_bounds)
 
-    solver = Gurobi.GurobiSolver(OutputFlag=false, Threads=1)
-    params = SDDP.SDDPparameters(solver, passnumber=FORWARD_PASS,
+    params = SDDP.SDDPparameters(SOLVER, passnumber=FORWARD_PASS,
                                  gap=EPSILON, max_iterations=MAX_ITER,
                                  confidence=CONFIDENCE_LEVEL,
                                  montecarlo_in_iter=MONTE_CARLO_SIZE,
