@@ -5,7 +5,7 @@ include("innerapprox.jl")
 
 # params
 MAXIT = 500
-NSIMU = 1000
+NSIMU = 100_000
 PRIMAL = true
 DUAL = true
 
@@ -124,6 +124,7 @@ println("Results")
 println("-------")
 println("Primal LB:\t", lbprimal)
 println("Dual UB:\t", -ubdual)
+println("Gap:\t", (lbprimal+ubdual)/lbprimal)
 OA && println("Monte Carlo (OA):\t", mean(c))
 IA && println("Monte Carlo (IA):\t", mean(ci))
 JA && println("Monte Carlo (JA):\t", jointcost)
