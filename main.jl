@@ -5,7 +5,7 @@ include("innerapprox.jl")
 
 # params
 MAXIT = 500
-NSIMU = 100_000
+NSIMU = 1000
 PRIMAL = true
 DUAL = true
 
