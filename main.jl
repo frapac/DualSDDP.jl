@@ -17,7 +17,8 @@ IA = false
 JA = false
 
 ### Build primal problem
-model, params = build_model()
+model = build_model()
+params = getparams()
 sddpprimal = SDDPInterface(model, params,
                     SDDP.IterLimit(MAX_ITER),
                     verbose_it=10)

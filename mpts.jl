@@ -19,6 +19,7 @@ function MPTSmatrix()
     nzones, narcs = size(R)
 
     I = eye(nzones)
+    Iq = eye(narcs)
     O = zeros(Float64, nzones, nzones)
     Oq = zeros(Float64, nzones, narcs)
     i = ones(Float64, nzones)
@@ -50,8 +51,8 @@ function MPTSmatrix()
          O O -I O O Oq; # utherm min
          O O O -I O Oq; # penal1 min
          O O O O -I Oq; # penal2 min
-         O O O O O I; # q max
-         O O O O O -I; # q min
+         O O O O O Iq; # q max
+         O O O O O -Iq; # q min
          I O I I -I R; # u + Aq = w
          B; # xf max
          -B] # xf min
@@ -147,8 +148,8 @@ function build_model_dual(model, param, t)
     return m
 end
 
-function buildprimal_MPTS()
-    laws = build_noiselaws();
+function build_model()
+    laws = MPTS.fitgloballaw(12, 5)
 
     # R = buildincidence
     A, B, D, E, G, Gt, C, c, balance, fexch = MPTSmatrix()
