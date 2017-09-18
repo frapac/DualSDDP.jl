@@ -1,9 +1,23 @@
 
 using MPTS
 
+# import data from MPTS
+XMAX = MPTS.Configuration.XMAX
+UTURB = MPTS.Configuration.UMAX
+UTHERM = MPTS.Configuration.PMAX
+X0 = MPTS.Configuration.XINI
+CPENAL = MPTS.Configuration.COST_F
+CTRANS = MPTS.Configuration.COST_T
+CTHERM = MPTS.Configuration.czpl[:, 1]
+RTOT = MPTS.build_graph()
+
+
 
 """Build matrix corresponding to the damsvalley"""
-function MPTSmatrix(nzones, narcs, R)
+function MPTSmatrix()
+    R, qmax = MPTS.buildincidence(RTOT)
+    nzones, narcs = size(R)
+
     I = eye(nzones)
     O = zeros(Float64, nzones, nzones)
     Oq = zeros(Float64, nzones, narcs)
@@ -13,7 +27,7 @@ function MPTSmatrix(nzones, narcs, R)
     # x+ = Ax + Bu + Cw
     # dimA: nx x nx
     A = I
-    # u = [uturb; uspill, utherm, urec1, urec2, q]
+    # u = [uturb, uspill, utherm, urec1, urec2, q]
     # (we get rid of F because we do not use decomposition)
     # dimB: nx x nu
     B = - [I I O O O Oq]
@@ -21,7 +35,7 @@ function MPTSmatrix(nzones, narcs, R)
     C = [I O]
 
 
-    c = [o; o; CTHERM*i; CPENAL*i; CPENAL*i ; zeros(Float64, narcs)]
+    c = [o; o; CTHERM; CPENAL*i; CPENAL*i ; CTRANS*ones(Float64, narcs)]
 
     # Dx + Eu <= Gw
     # we note nc the number of constraints
@@ -46,11 +60,12 @@ function MPTSmatrix(nzones, narcs, R)
 
     balance = [I O I I -I R]
     Gt = [O I]
-    G = [uturb*i; o; o; utherm*i; o; o; o; o; -qmax, qmax; o; xmax; o]
+    G = [UTURB*i; o; o; UTHERM*i; o; o; o; o; qmax; -qmax; o; XMAX; o]
 
 
-    return A, B, D, E, G, Gt, C, c, balance
+    return A, B, D, E, G, Gt, C, c, balance, qmax
 end
+
 
 """Build dual problem of MPTS."""
 function buildual_dam1(laws)
@@ -84,7 +99,8 @@ function build_model_dual(model, param, t)
     A, B, D, E, G, Gt, C, c, balance = MPTSmatrix(NZONES, NARCS, R)
     i = ones(Float64, nzones)
     o = zeros(Float64, nzones)
-    g = [UTURB;o;o;UTHERM;o;o;o;QMAX;-QMAX; Gt*w[: ,j];XMAX - C*w[:, j];C*w[:, j]]
+
+    getrhs(w, j) = [UTURB;o;o;UTHERM;o;o;o;QMAX;-QMAX; Gt*w[: ,j];XMAX - C*w[:, j];C*w[:, j]]
 
     m = Model(solver=param.SOLVER)
     law = model.noises
@@ -114,7 +130,7 @@ function build_model_dual(model, param, t)
 
     #= # add objective as minimization of expectancy: =#
     i = ones(Float64, ndams)
-    @objective(m, Min, sum(πp[j]*(-(dot(C*w[:, j], xf[:, j])+ dot(g, u[:, j])
+    @objective(m, Min, sum(πp[j]*(-(dot(C*w[:, j], xf[:, j])+ dot(getrhs(w, j), u[:, j])
                                     + alpha[j]) for j in 1:ns)))
 
     # take care of final cost: final co-state must equal 0
@@ -133,19 +149,23 @@ end
 
 function buildprimal_MPTS()
     laws = build_noiselaws();
-    i = ones(Float64, NZONES)
-    c = vcat(-i, 0*i)
 
     # R = buildincidence
-    A, B, D, E, G, Gt, C, c, balance = MPTSmatrix(NZONES, NARCS, R)
+    A, B, D, E, G, Gt, C, c, balance, fexch = MPTSmatrix()
 
     dynamic(t, x, u, w) = A*x+ B*u + C*w
     constr(t, x, u, w) = balance * u - Gt * w
     cost_t(t, x, u, w) = dot(c, u)
 
     # Build bounds:
-    x_bounds = XBOUNDS
-    u_bounds = UBOUNDS
+    x_bounds = [(0, xub) for xub in XMAX]
+    u_bounds = vcat(
+                [(0, uub) for uub in UTURB],
+                [(0, Inf) for uub in UTURB],
+                [(0, tub) for tub in UTHERM],
+                [(0, Inf) for uub in UTURB],
+                [(0, Inf) for uub in UTURB],
+                [(-f, f) for f in fexch])
 
     model = SDDP.LinearSPModel(TF,       # number of timestep
                                u_bounds, # control bounds

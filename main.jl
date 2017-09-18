@@ -4,7 +4,7 @@ include("sddp_optim.jl")
 include("innerapprox.jl")
 
 # params
-MAXIT = 500
+MAXIT = 50
 NSIMU = 1000
 PRIMAL = true
 DUAL = true

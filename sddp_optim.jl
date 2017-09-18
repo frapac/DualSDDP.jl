@@ -17,7 +17,7 @@ SOLVER = Gurobi.GurobiSolver(OutputFlag=false, Threads=1)
 # problem
 include("config.jl")
 include("dualutils.jl")
-include("damsvalley.jl")
+include("mpts.jl")
 
 srand(1111)
 
