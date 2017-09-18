@@ -4,7 +4,7 @@ include("sddp_optim.jl")
 include("innerapprox.jl")
 
 # params
-MAXIT = 50
+MAXIT = 20
 NSIMU = 1000
 PRIMAL = true
 DUAL = true
@@ -25,7 +25,7 @@ sddpprimal = SDDPInterface(model, params,
 SDDP.init!(sddpprimal)
 
 ### Build dual problem
-modeldual = buildual_dam1(build_noiselaws())
+modeldual = buildemptydual(model.noises)
 sddpdual = SDDPInterface(modeldual, params,
                          SDDP.IterLimit(MAX_ITER),
                          verbose_it=0)

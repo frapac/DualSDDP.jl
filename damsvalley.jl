@@ -26,7 +26,7 @@ end
 
 
 """Build dual problem of `dam1`."""
-function buildual_dam1(laws)
+function buildemptydual(laws)
     # Damsvalley configuration:
     x0 = [-3156.06 for i in 1:N_DAMS]
     x_bounds = [(-1e4, 1e4) for i in 1:N_DAMS];
