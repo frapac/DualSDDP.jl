@@ -15,10 +15,6 @@ using Gurobi
 SOLVER = Gurobi.GurobiSolver(OutputFlag=false, Threads=1)
 
 # problem
-include("config.jl")
-include("dualutils.jl")
-include("mpts.jl")
-
 srand(1111)
 
 

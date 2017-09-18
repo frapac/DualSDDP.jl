@@ -1,13 +1,17 @@
 # Run dual SDDP on dual of dam1
 
 include("sddp_optim.jl")
+include("config.jl")
+include("dualutils.jl")
+include("mpts.jl")
 include("innerapprox.jl")
 
+
 # params
-MAXIT = 20
-NSIMU = 1000
+MAXIT = 100
+NSIMU = 10
 PRIMAL = true
-DUAL = true
+DUAL = false
 
 # OUTER APPROXIMATION
 OA = true
@@ -21,7 +25,7 @@ model = build_model()
 params = getparams()
 sddpprimal = SDDPInterface(model, params,
                     SDDP.IterLimit(MAX_ITER),
-                    verbose_it=10)
+                    verbose_it=1)
 SDDP.init!(sddpprimal)
 
 ### Build dual problem
@@ -55,7 +59,7 @@ if DUAL
 
         # save current iterations
         push!(lbdual, lb)
-        (iter % 10 == 0) && display(iter, lb)
+        (iter % 10 == 0) && displayit(iter, lb)
     end
     texec = toq()
     println("Dual exec time: ", texec)
@@ -124,8 +128,8 @@ println("#"^70)
 println("Results")
 println("-------")
 println("Primal LB:\t", lbprimal)
-println("Dual UB:\t", -ubdual)
-println("Gap:\t", (lbprimal+ubdual)/lbprimal)
+println("Dual UB:\t", ubdual)
+println("Gap:\t", abs(lbprimal-ubdual)/lbprimal)
 OA && println("Monte Carlo (OA):\t", mean(c))
 IA && println("Monte Carlo (IA):\t", mean(ci))
 JA && println("Monte Carlo (JA):\t", jointcost)

@@ -21,7 +21,7 @@ function dualbound(sddpdual, x)
         @constraint(m, V.betas[i] + dot(lambda, p) <= θ)
     end
 
-    @objective(m, Min, θ - dot(x, p))
+    @objective(m, Max, dot(x, p) - θ)
     status = solve(m)
     if status != :Optimal
         println(m)
@@ -59,7 +59,7 @@ function getlowerbound(sddpdual, p)
 end
 
 
-function display(it, lb)
+function displayit(it, lb)
     print("Pass n\° ", it)
     @printf("\tLower-bound: %.4e \n", lb)
 end

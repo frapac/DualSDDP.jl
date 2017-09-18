@@ -158,6 +158,6 @@ function build_model()
                                  pruning_algo="exact+",
                                  rho0=0, alpha=.95)
     params.compute_ub = UPPER_BOUND
-    return model, params
+    return model
 end
 

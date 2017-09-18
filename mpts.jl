@@ -2,14 +2,17 @@
 using MPTS
 
 # import data from MPTS
-NAMES = [:GER, :FRA]
+NSTAGES = 30
+NAMES = [:FRA, :ESP, :BEL, :ITA, :GER, :SUI, :UK, :PT]
+#= NAMES = [:FRA, :ESP, :SUI, :GER, :ITA] =#
 XMAX, UTURB, UTHERM, X0, R, CTHERM, QMAX = MPTS.getglobalparams(NAMES)
-NBINS = 2
+NBINS = 9
 
 #= XMAX = MPTS.Configuration.XMAX =#
 #= UTURB = MPTS.Configuration.UMAX =#
 #= UTHERM = MPTS.Configuration.PMAX =#
 #= X0 = MPTS.Configuration.XINI =#
+COST_HF = MPTS.Configuration.COST_HF
 CPENAL = MPTS.Configuration.COST_F
 CTRANS = MPTS.Configuration.COST_T
 #= CTHERM = MPTS.Configuration.czpl[:, 1] =#
@@ -87,7 +90,7 @@ function buildemptydual(laws)
     constdual(t, x, u, w) = 0.
     cost_t(t, x, u, w) = 0.
 
-    model = SDDP.LinearSPModel(TF,       # number of timestep
+    model = SDDP.LinearSPModel(NSTAGES,       # number of timestep
                                u_bounds, # control bounds
                                x0,       # initial state
                                cost_t,   # cost function
@@ -158,13 +161,11 @@ function build_model_dual(model, param, t)
 end
 
 function build_model()
-    laws = MPTS.fitgloballaw(NAMES, 12, NBINS)
+    laws = MPTS.fitgloballaw(NAMES, NSTAGES, NBINS)
+    nzones, narcs = size(R)
 
     # R = buildincidence
     A, B, D, E, Gt, C, c, balance = MPTSmatrix()
-    println(size(C))
-    println(size(A))
-    println(size(B))
 
     dynamic(t, x, u, w) = A*x+ B*u + C*w
     constr(t, x, u, w) = balance * u - Gt * w
@@ -179,14 +180,22 @@ function build_model()
                 [(0, Inf) for uub in UTURB],
                 [(0, Inf) for uub in UTURB],
                 [(-f, f) for f in QMAX])
-    println(size(laws[1].support))
 
-    model = SDDP.LinearSPModel(TF,       # number of timestep
+    function finalcost(model, m)
+        alpha = m[:alpha]
+        xf = m[:xf]
+        z = @JuMP.variable(m, [1:nzones], lowerbound=0)
+        @JuMP.constraint(m, z[i=1:nzones] .>= X0 - xf)
+        @JuMP.constraint(m, alpha == COST_HF*sum(z))
+    end
+
+    model = SDDP.LinearSPModel(NSTAGES,       # number of timestep
                                u_bounds, # control bounds
                                X0,       # initial state
                                cost_t,   # cost function
                                dynamic,  # dynamic function
                                laws,
+                               Vfinal=finalcost,
                                eqconstr=constr
                               )
     SDDP.set_state_bounds(model, x_bounds)
