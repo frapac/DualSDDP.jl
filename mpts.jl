@@ -2,9 +2,9 @@
 using MPTS
 
 # import data from MPTS
-NSTAGES = 30
+NSTAGES = 100
 NAMES = [:FRA, :ESP, :BEL, :ITA, :GER, :SUI, :UK, :PT]
-#= NAMES = [:FRA, :ESP, :SUI, :GER, :ITA] =#
+#= NAMES = [:FRA, :ESP, :SUI] =#
 XMAX, UTURB, UTHERM, X0, R, CTHERM, QMAX = MPTS.getglobalparams(NAMES)
 NBINS = 9
 
@@ -149,8 +149,9 @@ function build_model_dual(model, param, t)
     # take care of final cost: final co-state must equal 0
     if t == model.stageNumber - 1
         for j=1:ns
-            @constraint(m, xf[:, j] .== 0)
-            @constraint(m, alpha[j] == 0)
+            @constraint(m, xf[:, j] .<= 0)
+            @constraint(m, xf[:, j] .>= -COST_HF)
+            @constraint(m, alpha[j] == dot(X0, xf[:, j]))
         end
     end
 
@@ -188,6 +189,7 @@ function build_model()
         @JuMP.constraint(m, z[i=1:nzones] .>= X0 - xf)
         @JuMP.constraint(m, alpha == COST_HF*sum(z))
     end
+    #= finalcost = nothing =#
 
     model = SDDP.LinearSPModel(NSTAGES,       # number of timestep
                                u_bounds, # control bounds
