@@ -2,11 +2,17 @@
 using MPTS
 
 # import data from MPTS
-NSTAGES = 100
-NAMES = [:FRA, :ESP, :BEL, :ITA, :GER, :SUI, :UK, :PT]
+NSTAGES = 40
+NAMES = [:FRA, :ESP, :ITA, :GER, :SUI, :UK, :PT]
 #= NAMES = [:FRA, :ESP, :SUI] =#
-XMAX, UTURB, UTHERM, X0, R, CTHERM, QMAX = MPTS.getglobalparams(NAMES)
-NBINS = 9
+XMAX, UTURB, UTHERM, X0, R, CTHERM_RAW, QMAX = MPTS.getglobalparams(NAMES)
+NZONES = length(CTHERM_RAW)
+NARCS = size(R,2)
+CTHERM = CTHERM_RAW .+ 15*rand(NZONES, NSTAGES)
+NBINS = 6
+
+
+getcost(t::Int) = [zeros(NZONES); zeros(NZONES); CTHERM[:, t]; CPENAL*ones(NZONES); CPENAL*ones(NZONES); CTRANS*ones(Float64, NARCS)]
 
 #= XMAX = MPTS.Configuration.XMAX =#
 #= UTURB = MPTS.Configuration.UMAX =#
@@ -42,7 +48,7 @@ function MPTSmatrix()
     C = [I O]
 
 
-    c = [o; o; CTHERM; CPENAL*i; CPENAL*i ; CTRANS*ones(Float64, narcs)]
+    #= c = [o; o; CTHERM; CPENAL*i; CPENAL*i ; CTRANS*ones(Float64, narcs)] =#
 
     # Dx + Eu <= Gw
     # we note nc the number of constraints
@@ -60,7 +66,7 @@ function MPTSmatrix()
          O O O O -I Oq; # penal2 min
          Oq2 Oq2 Oq2 Oq2 Oq2 Iq; # q max
          Oq2 Oq2 Oq2 Oq2 Oq2 -Iq; # q min
-         I O I I -I R; # u + Aq = w
+         I O I I -I R; # u + Rq = w
          B; # xf max
          -B] # xf min
     # lots of constraints :(
@@ -71,7 +77,7 @@ function MPTSmatrix()
     #= G = [UTURB; o; o; UTHERM*i; o; o; o; o; qmax; -qmax; o; XMAX; o] =#
 
 
-    return A, B, D, E, Gt, C, c, balance
+    return A, B, D, E, Gt, C,  balance
 end
 
 
@@ -109,7 +115,7 @@ function build_model_dual(model, param, t)
     nzones, narcs = size(R)
 
     ndams = model.dimStates
-    A, B, D, E, Gt, C, c, balance = MPTSmatrix()
+    A, B, D, E, Gt, C, balance = MPTSmatrix()
     i = ones(Float64, nzones)
     o = zeros(Float64, nzones)
 
@@ -128,7 +134,7 @@ function build_model_dual(model, param, t)
 
     @variable(m,  x[i=1:nx] )
     @variable(m, model.ulim[i,t][1] <= u[i=1:nu, j=1:ns] <=  model.ulim[i,t][2])
-    @variable(m, xf[i=1:nx, j=1:ns])
+    @variable(m, -10000 <= xf[i=1:nx, j=1:ns] <= 0)
     @variable(m, alpha[1:ns])
 
     m.ext[:cons] = @constraint(m, state_constraint, x .== 0)
@@ -137,6 +143,7 @@ function build_model_dual(model, param, t)
     @constraint(m, sum(πp[j]*(xf[:, j] + D'*u[:, j]) for j in 1:ns) .== x)
 
     # add admissible constraint in dual:
+    c = getcost(t)
     for j=1:ns
         @constraint(m, c + B'*xf[:, j] + E'*u[:, j] .== 0)
     end
@@ -166,11 +173,11 @@ function build_model()
     nzones, narcs = size(R)
 
     # R = buildincidence
-    A, B, D, E, Gt, C, c, balance = MPTSmatrix()
+    A, B, D, E, Gt, C, balance = MPTSmatrix()
 
     dynamic(t, x, u, w) = A*x+ B*u + C*w
     constr(t, x, u, w) = balance * u - Gt * w
-    cost_t(t, x, u, w) = dot(c, u)
+    cost_t(t, x, u, w) = dot(getcost(t), u)
 
     # Build bounds:
     x_bounds = [(0, xub) for xub in XMAX]

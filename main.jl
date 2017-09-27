@@ -8,10 +8,10 @@ include("innerapprox.jl")
 
 
 # params
-MAXIT = 100
-NSIMU = 10
+MAXIT = 500
+NSIMU = 1000
 PRIMAL = true
-DUAL = false
+DUAL = true
 
 # OUTER APPROXIMATION
 OA = true
@@ -25,7 +25,7 @@ model = build_model()
 params = getparams()
 sddpprimal = SDDPInterface(model, params,
                     SDDP.IterLimit(MAX_ITER),
-                    verbose_it=1)
+                    verbose_it=10)
 SDDP.init!(sddpprimal)
 
 ### Build dual problem

@@ -13,6 +13,7 @@ const SDDP = StochDynamicProgramming
 # solver
 using Gurobi
 SOLVER = Gurobi.GurobiSolver(OutputFlag=false, Threads=1)
+#= SOLVER = ClpSolver() =#
 
 # problem
 srand(1111)
