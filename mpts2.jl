@@ -2,16 +2,26 @@
 using MPTS
 
 # import data from MPTS
-NSTAGES = 2
-NAMES = [:FRA, :ESP, :ITA, :GER, :SUI, :UK, :PT]
+NSTAGES = 20
+α = 13 / NSTAGES
+#= NAMES = [:FRA, :GER, :ESP, :UK, :PT, :ITA] =#
+NAMES = [:FRA, :GER, :ESP, :UK, :PT, :ITA, :SUI, :BEL]
+#= NAMES = [:FRA, :ESP, :ITA] =#
 
-#= NAMES = [:FRA, :ESP, :SUI] =#
+#= NAMES = [:GER, :FRA] =#
 XMAX, UTURB, UTHERM, X0, R, CTHERM_RAW, QMAX = MPTS.getglobalparams(NAMES)
+UTURB *= α
+UTHERM *= α
+QMAX *= α
+#= QMAX[:] = 0. =#
 NZONES = length(CTHERM_RAW)
-NARCS = size(R,2)
-CTHERM = CTHERM_RAW .+ 15*rand(NZONES, NSTAGES)
-NBINS = 6
+NARCS = size(R, 2)
+CTHERM = CTHERM_RAW .+ 15*α*rand(NZONES, NSTAGES)
+NBINS = 5
 
+COST_HF = MPTS.Configuration.COST_HF
+CPENAL = MPTS.Configuration.COST_F
+CTRANS = 0 #MPTS.Configuration.COST_T
 
 getcost(t::Int) = [zeros(NZONES); zeros(NZONES); CTHERM[:, t];  CTRANS*ones(Float64, NARCS)]
 
@@ -19,9 +29,6 @@ getcost(t::Int) = [zeros(NZONES); zeros(NZONES); CTHERM[:, t];  CTRANS*ones(Floa
 #= UTURB = MPTS.Configuration.UMAX =#
 #= UTHERM = MPTS.Configuration.PMAX =#
 #= X0 = MPTS.Configuration.XINI =#
-COST_HF = MPTS.Configuration.COST_HF
-CPENAL = MPTS.Configuration.COST_F
-CTRANS = MPTS.Configuration.COST_T
 #= CTHERM = MPTS.Configuration.czpl[:, 1] =#
 #= RTOT = MPTS.build_graph() =#
 
@@ -118,7 +125,7 @@ function build_model_dual(model, param, t)
     i = ones(Float64, nzones)
     o = zeros(Float64, nzones)
 
-    getrhs(w, j) = -[UTURB;o;o;UTHERM;o;QMAX;-QMAX; Gt*w[: ,j];XMAX - C*w[:, j];C*w[:, j]]
+    getrhs(w, j) = -[UTURB;o;o;UTHERM;o;QMAX;QMAX; Gt*w[: ,j];XMAX - C*w[:, j];C*w[:, j]]
 
     m = Model(solver=param.SOLVER)
     law = model.noises
@@ -149,7 +156,7 @@ function build_model_dual(model, param, t)
 
     #= # add objective as minimization of expectancy: =#
     i = ones(Float64, ndams)
-    @objective(m, Min, sum(πp[j]*(-(dot(C*w[:, j], xf[:, j])+ dot(getrhs(w, j), u[:, j]))
+    @objective(m, Min, sum(πp[j]*(-(dot(C*w[:, j], xf[:, j]) + dot(getrhs(w, j), u[:, j]))
                                   + alpha[j]) for j in 1:ns))
 
     # take care of final cost: final co-state must equal 0
@@ -157,7 +164,7 @@ function build_model_dual(model, param, t)
         for j=1:ns
             @constraint(m, xf[:, j] .<= 0)
             @constraint(m, xf[:, j] .>= -COST_HF)
-            @constraint(m, alpha[j] == -dot(X0, xf[:, j]))
+            @constraint(m, alpha[j] == dot(X0, xf[:, j]))
             #= @constraint(m, xf[:, j] .== 0) =#
             #= @constraint(m, alpha[j] == 0) =#
         end
@@ -171,7 +178,8 @@ end
 
 
 function build_model()
-    laws = MPTS.fitgloballaw(NAMES, NSTAGES, NBINS)
+    dt = div(360, NSTAGES)
+    laws = MPTS.fitgloballaw(NAMES, NSTAGES, NBINS, dt)
     nzones, narcs = size(R)
 
     # R = buildincidence

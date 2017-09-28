@@ -3,15 +3,16 @@
 include("sddp_optim.jl")
 include("config.jl")
 include("dualutils.jl")
-include("mpts.jl")
+include("mpts2.jl")
 include("innerapprox.jl")
 
 
 # params
-MAXIT = 500
+MAXIT = 100
 NSIMU = 1000
 PRIMAL = true
 DUAL = true
+COMPARE = true
 
 # OUTER APPROXIMATION
 OA = true
@@ -63,7 +64,6 @@ if DUAL
     end
     texec = toq()
     println("Dual exec time: ", texec)
-    println(sddpdual.spmodel.initialState)
 end
 
 
@@ -134,3 +134,14 @@ OA && println("Monte Carlo (OA):\t", mean(c))
 IA && println("Monte Carlo (IA):\t", mean(ci))
 JA && println("Monte Carlo (JA):\t", jointcost)
 
+if COMPARE
+    @assert lbprimal < ubdual
+    p0 = sddpdual.spmodel.initialState
+    x0d = SDDP.get_subgradient(sddpdual.bellmanfunctions[1], p0)
+    println(X0)
+    println(x0d)
+
+    p0p =  SDDP.get_subgradient(sddpprimal.bellmanfunctions[1], X0)
+    println(p0)
+    println(p0p)
+end

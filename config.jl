@@ -5,7 +5,7 @@
 ################################################################################
 # Specify the valley to consider:
 # "dam2" "dam3" "dam4" "dam5" "dam6" "dam8" "damX" "damXII" "damRC1" "damRC2"
-const N_DAMS = 4
+const N_DAMS = 3
 const VALLEY = "dam$N_DAMS"
 
 # Directory storing the data:
