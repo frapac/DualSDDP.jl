@@ -2,18 +2,22 @@
 using MPTS
 
 # import data from MPTS
-NSTAGES = 20
+NSTAGES = 200
 α = 13 / NSTAGES
-#= NAMES = [:FRA, :GER, :ESP, :UK, :PT, :ITA] =#
-NAMES = [:FRA, :GER, :ESP, :UK, :PT, :ITA, :SUI, :BEL]
-#= NAMES = [:FRA, :ESP, :ITA] =#
+NODES = 8
 
-#= NAMES = [:GER, :FRA] =#
+if NODES == 2
+    NAMES = [:GER, :FRA]
+elseif NODES == 4
+    NAMES = [:FRA, :GER, :ESP, :UK]
+elseif NODES == 8
+    NAMES = [:FRA, :GER, :ESP, :UK, :PT, :ITA, :SUI, :BEL]
+end
+
 XMAX, UTURB, UTHERM, X0, R, CTHERM_RAW, QMAX = MPTS.getglobalparams(NAMES)
 UTURB *= α
 UTHERM *= α
 QMAX *= α
-#= QMAX[:] = 0. =#
 NZONES = length(CTHERM_RAW)
 NARCS = size(R, 2)
 CTHERM = CTHERM_RAW .+ 15*α*rand(NZONES, NSTAGES)
@@ -21,16 +25,10 @@ NBINS = 5
 
 COST_HF = MPTS.Configuration.COST_HF
 CPENAL = MPTS.Configuration.COST_F
-CTRANS = 0 #MPTS.Configuration.COST_T
+CTRANS = MPTS.Configuration.COST_T
 
 getcost(t::Int) = [zeros(NZONES); zeros(NZONES); CTHERM[:, t];  CTRANS*ones(Float64, NARCS)]
 
-#= XMAX = MPTS.Configuration.XMAX =#
-#= UTURB = MPTS.Configuration.UMAX =#
-#= UTHERM = MPTS.Configuration.PMAX =#
-#= X0 = MPTS.Configuration.XINI =#
-#= CTHERM = MPTS.Configuration.czpl[:, 1] =#
-#= RTOT = MPTS.build_graph() =#
 
 
 

@@ -8,10 +8,10 @@ include("innerapprox.jl")
 
 
 # params
-MAXIT = 100
+MAXIT = 200
 NSIMU = 1000
 PRIMAL = true
-DUAL = true
+DUAL = false
 COMPARE = true
 
 # OUTER APPROXIMATION
@@ -125,11 +125,12 @@ lbprimal = sddpprimal.stats.lower_bounds[end]
 ubdual = lbdual[end]
 
 println("#"^70)
-println("Results")
+println("Results --- $MAXIT iterations")
 println("-------")
 println("Primal LB:\t", lbprimal)
 println("Dual UB:\t", ubdual)
 println("Gap:\t", abs(lbprimal-ubdual)/lbprimal)
+println("Simulation ($NSIMU scenarios)")
 OA && println("Monte Carlo (OA):\t", mean(c))
 IA && println("Monte Carlo (IA):\t", mean(ci))
 JA && println("Monte Carlo (JA):\t", jointcost)
