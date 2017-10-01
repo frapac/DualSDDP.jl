@@ -2,9 +2,9 @@
 using MPTS
 
 # import data from MPTS
-NSTAGES = 200
+NSTAGES = 20
 α = 13 / NSTAGES
-NODES = 8
+NODES = 2
 
 if NODES == 2
     NAMES = [:GER, :FRA]
@@ -27,7 +27,7 @@ COST_HF = MPTS.Configuration.COST_HF
 CPENAL = MPTS.Configuration.COST_F
 CTRANS = MPTS.Configuration.COST_T
 
-getcost(t::Int) = [zeros(NZONES); zeros(NZONES); CTHERM[:, t];  CTRANS*ones(Float64, NARCS)]
+getcost(t::Int) = [zeros(NZONES); zeros(NZONES); CTHERM[:, t]; CPENAL*ones(NZONES); CTRANS*ones(Float64, NARCS)]
 
 
 
@@ -49,7 +49,7 @@ function MPTSmatrix()
     # u = [uturb, uspill, utherm, urec1, urec2, q]
     # (we get rid of F because we do not use decomposition)
     # dimB: nx x nu
-    B = - [I I O Oq]
+    B = - [I I O O Oq]
     # dimC: nx x nw
     C = [I O]
 
@@ -60,23 +60,24 @@ function MPTSmatrix()
     # we note nc the number of constraints
     # dimD: nc x nx
     Oq2 = zeros(Float64, narcs, nzones)
-    D = [O; O; O; O; O; Oq2; Oq2; O; A; -A]
+    D = [O; O; O; O; O;O; Oq2; Oq2; O; A; -A]
 
     # dimE: nc x nu
-    E = [I O O Oq; # uturb max
-        -I O O Oq; # uturb min
-         O -I O Oq; # uspill min
-         O O I Oq; # utherm max
-         O O -I Oq; # utherm min
-         Oq2 Oq2 Oq2 Iq; # q max
-         Oq2 Oq2 Oq2 -Iq; # q min
-         I O I R; # u + Rq = w
+    E = [I O O O Oq; # uturb max
+        -I O O O Oq; # uturb min
+         O -I O O Oq; # uspill min
+         O O I O Oq; # utherm max
+         O O -I O Oq; # utherm min
+         O O O -I Oq; # utherm min
+         Oq2 Oq2 Oq2 Oq2 Iq; # q max
+         Oq2 Oq2 Oq2 Oq2 -Iq; # q min
+         I O I I R; # u + Rq = w
          B; # xf max
          -B] # xf min
     # lots of constraints :(
     # nc = 10 * nzones + 2 * narcs
 
-    balance = [I O I R]
+    balance = [I O I I R]
     Gt = [O I]
     #= G = [UTURB; o; o; UTHERM*i; o; o; o; o; qmax; -qmax; o; XMAX; o] =#
 
@@ -91,7 +92,7 @@ function buildemptydual(laws)
     # Damsvalley configuration:
     x0 = [-3156.06 for i in 1:nzones]
     x_bounds = [(-1e4, 1e4) for i in 1:nzones];
-    u_bounds = vcat([(0, Inf) for i in 1:(5*nzones+2*narcs)],
+    u_bounds = vcat([(0, Inf) for i in 1:(6*nzones+2*narcs)],
                     [(-Inf, Inf) for i in 1:nzones],
                     [(0, Inf) for i in 1:(2*nzones)])
 
@@ -123,7 +124,7 @@ function build_model_dual(model, param, t)
     i = ones(Float64, nzones)
     o = zeros(Float64, nzones)
 
-    getrhs(w, j) = -[UTURB;o;o;UTHERM;o;QMAX;QMAX; Gt*w[: ,j];XMAX - C*w[:, j];C*w[:, j]]
+    getrhs(w, j) = -[UTURB;o;o;UTHERM;o;o;QMAX;QMAX; Gt*w[: ,j];XMAX - C*w[:, j];C*w[:, j]]
 
     m = Model(solver=param.SOLVER)
     law = model.noises
@@ -193,6 +194,7 @@ function build_model()
                 [(0, uub) for uub in UTURB],
                 [(0, Inf) for uub in UTURB],
                 [(0, tub) for tub in UTHERM],
+                [(0, Inf) for uub in UTURB],
                 [(-f, f) for f in QMAX])
 
     function finalcost(model, m)
