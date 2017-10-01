@@ -8,10 +8,11 @@ include("innerapprox.jl")
 
 
 # params
-MAXIT = 200
+SAVE = true
+MAXIT = 100
 NSIMU = 1000
 PRIMAL = true
-DUAL = false
+DUAL = true
 COMPARE = true
 
 # OUTER APPROXIMATION
@@ -145,4 +146,17 @@ if COMPARE
     p0p =  SDDP.get_subgradient(sddpprimal.bellmanfunctions[1], X0)
     println(p0)
     println(p0p)
+end
+
+if SAVE
+    res = zeros(Float64, MAXIT, 5)
+    gap = lbdual ./ sddpprimal.stats.lower_bounds[2:end] - 1
+
+    res[:, 1] = sddpprimal.stats.lower_bounds[2:end]
+    res[:, 2] = lbdual
+    res[:, 3] = gap
+    res[:, 4] = cumsum(sddpprimal.stats.exectime[2:end])
+    res[:, 5] = cumsum(sddpdual.stats.exectime)
+
+    writecsv("res/conv_$(MAXIT)_$(NODES)_$(NSTAGES).csv", res)
 end
