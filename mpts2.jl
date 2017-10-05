@@ -2,9 +2,9 @@
 using MPTS
 
 # import data from MPTS
-NSTAGES = 20
+NSTAGES = 200
 α = 13 / NSTAGES
-NODES = 2
+NODES = 8
 
 if NODES == 2
     NAMES = [:GER, :FRA]

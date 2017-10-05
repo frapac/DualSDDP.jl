@@ -8,15 +8,16 @@ include("innerapprox.jl")
 
 
 # params
-SAVE = true
-MAXIT = 100
-NSIMU = 1000
+SAVE   = true
+MAXIT  = 2000
+NSIMU  = 1000
+MCSIZE = 10000
 PRIMAL = true
-DUAL = true
-COMPARE = true
+DUAL   = true
+COMPARE = false
 
 # OUTER APPROXIMATION
-OA = true
+OA = false
 # INNER APPROXIMATION
 IA = false
 # JOINT APPROXIMATION
@@ -26,8 +27,8 @@ JA = false
 model = build_model()
 params = getparams()
 sddpprimal = SDDPInterface(model, params,
-                    SDDP.IterLimit(MAX_ITER),
-                    verbose_it=10)
+                           SDDP.IterLimit(MAX_ITER),
+                           verbose_it=10)
 SDDP.init!(sddpprimal)
 
 ### Build dual problem
@@ -40,6 +41,10 @@ initdual!(sddpdual)
 
 ### SDDP DUAL ####
 if DUAL
+    ubd = []
+    stdd = []
+    scen = SDDP.simulate_scenarios(sddpdual.spmodel.noises, MCSIZE)
+
     # Run 1 combined iteration to init cuts in sddpdual
     for iter in 1:1
         SDDP.iteration!(sddpprimal, sddpdual)
@@ -62,18 +67,37 @@ if DUAL
         # save current iterations
         push!(lbdual, lb)
         (iter % 10 == 0) && displayit(iter, lb)
+        #= if iter % UPPER_BOUND == 0 =#
+        #=     cost = SDDP.simulate(sddpdual, scen)[1] =#
+        #=     push!(ubd, mean(cost)) =#
+        #=     push!(stdd, std(cost)) =#
+        #= end =#
     end
     texec = toq()
     println("Dual exec time: ", texec)
+    SAVE && writecsv("lbdual", lbdual)
+    SAVE && writecsv("timedual", sddpdual.stats.exectime)
 end
 
 
 ### RUN iterations in primal
 if PRIMAL
+    ubp = []
+    stdp = []
+    scen = SDDP.simulate_scenarios(sddpprimal.spmodel.noises, MCSIZE)
     println("RUN PRIMAL SDDP")
+
     tic()
+
     for iter in 1:MAXIT
         SDDP.iteration!(sddpprimal)
+
+        if iter % UPPER_BOUND == 0
+            cost = SDDP.simulate(sddpprimal, scen)[1]
+            push!(ubp, mean(cost))
+            push!(stdp, std(cost))
+        end
+        (iter % 10 == 0) && SDDP.reload!(sddpdual)
     end
     texec = toq()
     println("Primal exec time: ", texec)
@@ -149,7 +173,7 @@ if COMPARE
 end
 
 if SAVE
-    res = zeros(Float64, MAXIT, 5)
+    res = zeros(Float64, MAXIT, 6)
     gap = lbdual ./ sddpprimal.stats.lower_bounds[2:end] - 1
 
     res[:, 1] = sddpprimal.stats.lower_bounds[2:end]
@@ -157,6 +181,7 @@ if SAVE
     res[:, 3] = gap
     res[:, 4] = cumsum(sddpprimal.stats.exectime[2:end])
     res[:, 5] = cumsum(sddpdual.stats.exectime)
+    res[:, 6] = sddpprimal.stats.upper_bounds[2:end]
 
     writecsv("res/conv_$(MAXIT)_$(NODES)_$(NSTAGES).csv", res)
 end

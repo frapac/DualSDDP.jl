@@ -61,7 +61,7 @@ const MONTE_CARLO_SIZE = 1000
 const FINAL_MONTE_CARLO_SIZE = 10000
 const CONFIDENCE_LEVEL = .975
 # Compute upper bound every %% iterations:
-const UPPER_BOUND = 0
+const UPPER_BOUND = 100
 # Prune cuts every %% iterations:
 const PRUNE_CUTS = 100
 
