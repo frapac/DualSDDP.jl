@@ -8,10 +8,10 @@ include("innerapprox.jl")
 
 
 # params
-SAVE   = true
-MAXIT  = 2000
+SAVE   = false
+MAXIT  = 300
 NSIMU  = 1000
-MCSIZE = 10000
+MCSIZE = 1000
 PRIMAL = true
 DUAL   = true
 COMPARE = false
@@ -92,15 +92,17 @@ if PRIMAL
     for iter in 1:MAXIT
         SDDP.iteration!(sddpprimal)
 
-        if iter % UPPER_BOUND == 0
+        if false #iter % UPPER_BOUND == 0
             cost = SDDP.simulate(sddpprimal, scen)[1]
             push!(ubp, mean(cost))
             push!(stdp, std(cost))
         end
-        (iter % 10 == 0) && SDDP.reload!(sddpdual)
+        (iter % 10 == 0) && SDDP.reload!(sddpprimal)
     end
     texec = toq()
     println("Primal exec time: ", texec)
+    SAVE && writecsv("lbprimal", sddpprimal.stats.lower_bounds)
+    SAVE && writecsv("timeprimal", sddpprimal.stats.exectime)
 end
 
 

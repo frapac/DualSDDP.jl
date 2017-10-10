@@ -2,7 +2,7 @@
 using MPTS
 
 # import data from MPTS
-NSTAGES = 200
+NSTAGES = 10
 α = 13 / NSTAGES
 NODES = 8
 
@@ -11,7 +11,7 @@ if NODES == 2
 elseif NODES == 4
     NAMES = [:FRA, :GER, :ESP, :UK]
 elseif NODES == 8
-    NAMES = [:FRA, :GER, :ESP, :UK, :PT, :ITA, :SUI, :BEL]
+    NAMES = [:FRA, :GER, :ESP, :UK, :PT, :ITA, :SUI]
 end
 
 XMAX, UTURB, UTHERM, X0, R, CTHERM_RAW, QMAX = MPTS.getglobalparams(NAMES)
@@ -19,12 +19,12 @@ UTURB *= α
 UTHERM *= α
 QMAX *= α
 NZONES = length(CTHERM_RAW)
-NARCS = size(R, 2)
+NARCS  = size(R, 2)
 CTHERM = CTHERM_RAW .+ 15*α*rand(NZONES, NSTAGES)
-NBINS = 5
+NBINS  = 9
 
 COST_HF = MPTS.Configuration.COST_HF
-CPENAL = MPTS.Configuration.COST_F
+CPENAL = 1000 #MPTS.Configuration.COST_F
 CTRANS = MPTS.Configuration.COST_T
 
 getcost(t::Int) = [zeros(NZONES); zeros(NZONES); CTHERM[:, t]; CPENAL*ones(NZONES); CTRANS*ones(Float64, NARCS)]
