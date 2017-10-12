@@ -2,7 +2,7 @@
 using MPTS
 
 # import data from MPTS
-NSTAGES = 10
+NSTAGES = 52
 α = 13 / NSTAGES
 NODES = 8
 
@@ -15,13 +15,13 @@ elseif NODES == 8
 end
 
 XMAX, UTURB, UTHERM, X0, R, CTHERM_RAW, QMAX = MPTS.getglobalparams(NAMES)
-UTURB *= α
+UTURB  *= α
 UTHERM *= α
-QMAX *= α
+QMAX   *= α
 NZONES = length(CTHERM_RAW)
 NARCS  = size(R, 2)
-CTHERM = CTHERM_RAW .+ 15*α*rand(NZONES, NSTAGES)
-NBINS  = 9
+CTHERM = CTHERM_RAW .+ 15*rand(NZONES, NSTAGES)
+NBINS  = 5
 
 COST_HF = MPTS.Configuration.COST_HF
 CPENAL = 1000 #MPTS.Configuration.COST_F
@@ -139,7 +139,7 @@ function build_model_dual(model, param, t)
 
     @variable(m, x[i=1:nx])
     @variable(m, model.ulim[i,t][1] <= u[i=1:nu, j=1:ns] <=  model.ulim[i,t][2])
-    @variable(m, -10000 <= xf[i=1:nx, j=1:ns] <= 0)
+    @variable(m, -1e6 <= xf[i=1:nx, j=1:ns] <= 0)
     @variable(m, alpha[1:ns])
 
     m.ext[:cons] = @constraint(m, state_constraint, x .== 0)

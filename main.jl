@@ -9,7 +9,7 @@ include("innerapprox.jl")
 
 # params
 SAVE   = false
-MAXIT  = 300
+MAXIT  = 100
 NSIMU  = 1000
 MCSIZE = 1000
 PRIMAL = true
@@ -82,6 +82,7 @@ end
 
 ### RUN iterations in primal
 if PRIMAL
+    SDDP.setupperbound!(sddpprimal, 2.4e7)
     ubp = []
     stdp = []
     scen = SDDP.simulate_scenarios(sddpprimal.spmodel.noises, MCSIZE)
