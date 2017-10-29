@@ -1,7 +1,7 @@
 
 ################################################################################
 ################################################################################
-# DAMS VALLEY MANAGEMENT
+# SDDP DUAL
 # -----------
 # This file specify the parameters of the problem
 ################################################################################
@@ -13,7 +13,6 @@ const SDDP = StochDynamicProgramming
 # solver
 using Gurobi
 SOLVER = Gurobi.GurobiSolver(OutputFlag=false, Threads=1)
-#= SOLVER = ClpSolver() =#
 
 # problem
 srand(1111)
