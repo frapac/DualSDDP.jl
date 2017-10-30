@@ -51,6 +51,7 @@ end
 function rundual!(sddpdual, sddpprimal)
     ubd = []
     stdd = []
+    srand(2713)
     scen = SDDP.simulate_scenarios(sddpdual.spmodel.noises, MCSIZE)
 
     # Run 1 combined iteration to init cuts in sddpdual

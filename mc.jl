@@ -36,10 +36,13 @@ function computeprimalMC(sddp, ti, to, dt, nscen=1000)
     v = copy(sddp.bellmanfunctions)
     μmc = Float64[]
     σmc = Float64[]
+
+    srand(2713)
     scen = SDDP.simulate_scenarios(sddpprimal.spmodel.noises, nscen)
     for it in ti:dt:to
         c, s = mc!(sddp, v, it, scen)
-        println(c, "   ---   ", s)
+        @printf("%s: %.3e", it, c)
+        @printf("\t%.3e\n", s)
         push!(μmc, c)
         push!(σmc, s)
     end
@@ -56,6 +59,8 @@ function computedualMC(sddpdual, ti, to, dt, nscen=1000)
     v = copy(sddp.bellmanfunctions)
     μmc = Float64[]
     σmc = Float64[]
+
+    srand(2713)
     scen = SDDP.simulate_scenarios(sddpprimal.spmodel.noises, nscen)
 
     for it in ti:dt:to
@@ -64,8 +69,8 @@ function computedualMC(sddpdual, ti, to, dt, nscen=1000)
         init_innermodeler!(sddp, vtail)
         ci = SDDP.simulate(sddp, scen)[1]
 
-        @printf("$it: %.3e", mean(ci))
-        @printf("\t%.3e", std(ci))
+        @printf("%s: %.3e", it, mean(ci))
+        @printf("\t%.3e\n", std(ci))
         push!(μmc, mean(ci))
         push!(σmc, std(ci))
     end
