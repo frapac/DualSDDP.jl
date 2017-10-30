@@ -2,7 +2,7 @@
 
 function run_jointapprox(w)
     @assert 0 <= w <= 1
-    sddp= SDDPInterface(model, params,
+    sddp= SDDPInterface(sddpprimal.spmodel, sddpprimal.params,
                         SDDP.IterLimit(MAX_ITER),
                         verbose_it=10)
     # Replace model with inner approx

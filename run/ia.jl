@@ -1,7 +1,7 @@
 
 println("RUN INNER APPROX")
 # Build a new SDDP interface
-sddp= SDDPInterface(model, params,
+sddp= SDDPInterface(sddpprimal.spmodel, sddpprimal.params,
                     SDDP.IterLimit(MAX_ITER),
                     verbose_it=10)
 # Replace model with inner approx
