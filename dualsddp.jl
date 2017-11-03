@@ -44,6 +44,8 @@ function runprimal!(sddpprimal)
     println("Primal exec time: ", texec)
     SAVE && writecsv("lbprimal", sddpprimal.stats.lower_bounds)
     SAVE && writecsv("timeprimal", sddpprimal.stats.exectime)
+
+    return ubp, stdp
 end
 
 
@@ -63,28 +65,33 @@ function rundual!(sddpdual, sddpprimal)
 
     ### RUN iterations in dual
     lbdual = Float64[]
+    timedual = Float64[]
     println("RUN DUAL SDDP")
     lb = updateinitialstate!(sddpdual, X0)
     tic()
     for iter in 1:MAXIT
         # Update initial costate
+        tic()
         lb = updateinitialstate!(sddpdual, X0)
 
         # Run forward an backward pass
         SDDP.iteration!(sddpdual)
+        tdual = toq()
 
         # save current iterations
         push!(lbdual, lb)
+        push!(timedual, tdual)
         (iter % 10 == 0) && displayit(iter, lb)
     end
     texec = toq()
     println("Dual exec time: ", texec)
     SAVE && writecsv("lbdual", lbdual)
     SAVE && writecsv("timedual", sddpdual.stats.exectime)
-    return lbdual
+    return lbdual, timedual
 end
 
 
+"""Run jointly primal and dual SDDPs."""
 function runjoint!(sddpprimal, sddpdual)
     lbdual = Float64[]
     timedual = Float64[]
@@ -95,9 +102,11 @@ function runjoint!(sddpprimal, sddpdual)
     tic()
 
     for iter in 1:MAXIT
+        # perform a mixed iteration between primal and dual SDDP
         td = SDDP.iteration!(sddpprimal, sddpdual)
         tic()
         lb = updateinitialstate!(sddpdual, X0)
+        # run a forward cuts in dual
         SDDP.fwdcuts(sddpdual)
         lb = updateinitialstate!(sddpdual, X0)
         tdual = toq() + td
@@ -105,7 +114,7 @@ function runjoint!(sddpprimal, sddpdual)
         # save current iterations
         push!(lbdual, lb)
         push!(timedual, tdual)
-        if iter % 50 == 0
+        if iter % ΔMC == 0
             cost = SDDP.simulate(sddpprimal, scen)[1]
             push!(ubp, mean(cost))
             push!(stdp, std(cost))
