@@ -142,7 +142,7 @@ function build_model_dual(model, param, t)
 
     @variable(m, x[i=1:nx])
     @variable(m, model.ulim[i,t][1] <= u[i=1:nu, j=1:ns] <=  model.ulim[i,t][2])
-    @variable(m, -1e6 <= xf[i=1:nx, j=1:ns] <= 0)
+    @variable(m, -LIPSCHITZ <= xf[i=1:nx, j=1:ns] <= 0)
     @variable(m, alpha[1:ns])
 
     m.ext[:cons] = @constraint(m, state_constraint, x .== 0)

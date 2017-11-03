@@ -1,5 +1,8 @@
 # Write dual version of problems in problem.jl
 
+# Lipschitz constant
+LIPSCHITZ = 10e5
+
 """Overwrite JuMP Model in `sddp` to consider dual version."""
 function initdual!(sddp)
     ms = JuMP.Model[build_model_dual(sddp.spmodel, sddp.params, t) for t=1:sddp.spmodel.stageNumber-1]
@@ -14,7 +17,7 @@ function dualbound(sddpdual, x)
     m = Model(solver=sddpdual.params.SOLVER)
 
     @variable(m, θ)
-    p = @variable(m, -10e5 <= p[1:sddpdual.spmodel.dimStates] <= 0)
+    p = @variable(m, -LIPSCHITZ <= p[1:sddpdual.spmodel.dimStates] <= 0)
 
     for i in 1:V.numCuts
         lambda = vec(V.lambdas[i, :])
