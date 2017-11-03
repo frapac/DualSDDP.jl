@@ -10,17 +10,23 @@ include("innerapprox.jl")
 
 # params
 SAVE   = false
-MAXIT  = 1000
+MAXIT  = 300
 NSIMU  = 1000
 MCSIZE = 1000
 PRIMAL = true
 DUAL   = false
+ΔMC = 100
 
 sddpprimal = initprimal()
+#= ubp, stdp = runprimal!(sddpprimal) =#
+
 sddpdual = initdual(sddpprimal)
 
 lbdual, timedual, ubp, stdp = runjoint!(sddpprimal, sddpdual)
 timedual -= sddpprimal.stats.exectime
+
+#= lbdual, timedual = rundual!(sddpdual, sddpprimal) =#
+# recalibrate dual time
 
 
 ### RESULTS

@@ -2,14 +2,16 @@
 using MPTS
 
 # import data from MPTS
-NSTAGES = 12
-α = 13 / NSTAGES
+NSTAGES = 52
+α = 1/30 #13 / NSTAGES
 NODES = 8
 
 if NODES == 2
     NAMES = [:GER, :FRA]
 elseif NODES == 4
     NAMES = [:FRA, :GER, :ESP, :UK]
+elseif NODES == 7
+    NAMES = [:FRA, :GER, :ESP, :UK, :PT, :ITA, :SUI]
 elseif NODES == 8
     NAMES = [:FRA, :GER, :ESP, :UK, :PT, :ITA, :SUI, :BEL]
 end
@@ -21,7 +23,8 @@ QMAX   *= α
 NZONES = length(CTHERM_RAW)
 NARCS  = size(R, 2)
 CTHERM = CTHERM_RAW .+ 15*rand(NZONES, NSTAGES)
-NBINS  = 5
+NBINS  = 10
+SCEN   = "2"
 
 COST_HF = MPTS.Configuration.COST_HF
 CPENAL = 3000 #MPTS.Configuration.COST_F
@@ -178,7 +181,7 @@ end
 
 function build_model()
     dt = div(360, NSTAGES)
-    laws = MPTS.fitgloballaw(NAMES, NSTAGES, NBINS, dt)
+    laws = MPTS.fitgloballaw(NAMES, NSTAGES, NBINS, dt, SCEN, 50)
     nzones, narcs = size(R)
 
     # R = buildincidence
