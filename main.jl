@@ -10,23 +10,30 @@ include("innerapprox.jl")
 
 # params
 SAVE   = false
-MAXIT  = 300
+MAXIT  = 500
 NSIMU  = 1000
 MCSIZE = 1000
+# 1: Primal SDDP   2: Dual SDDP    3: Mix primal / dual
+ALGO = 3
 PRIMAL = true
 DUAL   = false
 ΔMC = 100
 
+# Init SDDP interface
 sddpprimal = initprimal()
-#= ubp, stdp = runprimal!(sddpprimal) =#
 
-sddpdual = initdual(sddpprimal)
+if ALGO == 1
+    ubp, stdp = runprimal!(sddpprimal)
+elseif ALGO == 2
+    sddpdual = initdual(sddpprimal)
+    lbdual, timedual = rundual!(sddpdual, sddpprimal)
+elseif ALGO == 3
+    sddpdual = initdual(sddpprimal)
+    lbdual, timedual, ubp, stdp = runjoint!(sddpprimal, sddpdual)
+    # recalibrate dual time
+    timedual -= sddpprimal.stats.exectime
+end
 
-lbdual, timedual, ubp, stdp = runjoint!(sddpprimal, sddpdual)
-timedual -= sddpprimal.stats.exectime
-
-#= lbdual, timedual = rundual!(sddpdual, sddpprimal) =#
-# recalibrate dual time
 
 
 ### RESULTS
