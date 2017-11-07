@@ -12,4 +12,4 @@ res[ΔMC:ΔMC:MAXIT, 7] = ubd
 res[ΔMC:ΔMC:MAXIT, 8] = stdp
 res[ΔMC:ΔMC:MAXIT, 9] = stdd
 
-writecsv("res/conv_$(MAXIT)_$(NODES)_$(NSTAGES).csv", res)
+writecsv("res/pbm_$(MAXIT)_$(NODES)_$(NSTAGES).csv", res)

@@ -33,7 +33,7 @@ function runprimal!(sddpprimal)
     for iter in 1:MAXIT
         SDDP.iteration!(sddpprimal)
 
-        if false #iter % UPPER_BOUND == 0
+        if iter % ΔMC == 0
             cost = SDDP.simulate(sddpprimal, scen)[1]
             push!(ubp, mean(cost))
             push!(stdp, std(cost))

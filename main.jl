@@ -10,7 +10,7 @@ include("innerapprox.jl")
 
 # params
 SAVE   = false
-MAXIT  = 500
+MAXIT  = 1000
 NSIMU  = 1000
 MCSIZE = 1000
 # 1: Primal SDDP   2: Dual SDDP    3: Mix primal / dual

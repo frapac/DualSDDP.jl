@@ -38,12 +38,12 @@ function dispconv(; nscen=1000, ptol=.95, delta=UPPER_BOUND)
     plot(ΔI:ΔI:MAXIT, ubp, color="k", lw=1.5, label="Outer strat.", marker="s")
     plot(ΔI:ΔI:MAXIT, ubp + tol*stdp/√nscen, color="k", lw=1, linestyle="--")
     plot(ΔI:ΔI:MAXIT, ubp - tol*stdp/√nscen, color="k", lw=1, linestyle="--")
-    plot(ΔI:ΔI:MAXIT, ubp + tol2*stdp/√nscen, color="k", lw=1, linestyle=":")
-    plot(ΔI:ΔI:MAXIT, ubp - tol2*stdp/√nscen, color="k", lw=1, linestyle=":")
+    #= plot(ΔI:ΔI:MAXIT, ubp + tol2*stdp/√nscen, color="k", lw=1, linestyle=":") =#
+    #= plot(ΔI:ΔI:MAXIT, ubp - tol2*stdp/√nscen, color="k", lw=1, linestyle=":") =#
     fill_between(ΔI:ΔI:MAXIT, ubp - tol*stdp/√nscen, ubp + tol*stdp/√nscen,
                  color="grey", alpha=.4, label="Confidence ($(100*ptol)%)")
-    fill_between(ΔI:ΔI:MAXIT, ubp - tol2*stdp/√nscen, ubp + tol2*stdp/√nscen,
-                 color="grey", alpha=.1, label="Confidence ($(100*.999)%)")
+    #= fill_between(ΔI:ΔI:MAXIT, ubp - tol2*stdp/√nscen, ubp + tol2*stdp/√nscen, =#
+    #=              color="grey", alpha=.1, label="Confidence ($(100*.999)%)") =#
 
 
     legend(loc=4)
@@ -54,9 +54,14 @@ end
 
 
 """Display evolution of inner strategy."""
-function dispubd()
-    plot(100:100:MAXIT, ubd, color="olive", marker="o", linestyle="--",
+function dispubd(;nscen=1000)
+    tol = √2 * erfinv(2*.95 - 1)
+    plot(ΔMC:ΔMC:MAXIT, ubd, color="olive", marker="o", linestyle="--",
         label="Inner strat.")
+    plot(ΔMC:ΔMC:MAXIT, ubd + tol*stdd/√nscen, color="darkgreen", alpha=.5, lw=1, linestyle=":")
+    plot(ΔMC:ΔMC:MAXIT, ubd - tol*stdd/√nscen, color="darkgreen", alpha=.5, lw=1, linestyle=":")
+    #= fill_between(ΔMC:ΔMC:MAXIT, ubd - tol*stdd/√nscen, ubd + tol*stdd/√nscen, =#
+    #=              color="green", alpha=.2, label="Confidence ($(100*.95)%)") =#
 end
 
 
@@ -73,12 +78,12 @@ function dispres(res, di)
     plot(lbdual, c="darkblue", lw=4, label="Dual UB")
     plot(lprim, c="darkred", lw=4, label="Primal LB")
 
-    plot(di:di:nbit, ubp, color="k", lw=1.5, label="MC UB", marker="s")
+    plot(di:di:nbit, ubp, color="k", lw=1.5, label="Outer strat.", marker="s")
     plot(di:di:nbit, ubd, color="olive", marker="o", linestyle="--",
         label="Inner strat.")
 
     legend(loc=4)
-    tight_layout()
     xlabel("Iterations")
     ylim(.99lbprimal, 1.01lbprimal)
+    tight_layout()
 end

@@ -40,9 +40,12 @@ function computeprimalMC(sddp, ti, to, dt, nscen=1000)
     srand(2713)
     scen = SDDP.simulate_scenarios(sddpprimal.spmodel.noises, nscen)
     for it in ti:dt:to
+        tic()
         c, s = mc!(sddp, v, it, scen)
+        tmc = toq()
         @printf("%s: %.3e", it, c)
-        @printf("\t%.3e\n", s)
+        @printf("\t%.3e", s)
+        @printf("\t%.0fs\n", tmc)
         push!(μmc, c)
         push!(σmc, s)
     end
