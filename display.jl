@@ -65,25 +65,41 @@ function dispubd(;nscen=1000)
 end
 
 
-function dispres(res, di)
+function dispres(res, di, conf=false, nscen=1000)
+    tol = √2 * erfinv(2*.95 - 1)
     nbit = size(res, 1)
     lbdual = res[:, 2]
     lprim = res[:, 1]
     lbprimal = lprim[end]
     ubp = res[di:di:nbit, 6]
     ubd = res[di:di:nbit, 7]
+    stdp = res[di:di:nbit, 8]
+    stdd = res[di:di:nbit, 9]
 
     figure(figsize=(9,6))
 
     plot(lbdual, c="darkblue", lw=4, label="Dual UB")
     plot(lprim, c="darkred", lw=4, label="Primal LB")
 
-    plot(di:di:nbit, ubp, color="k", lw=1.5, label="Outer strat.", marker="s")
+    plot(di:di:nbit, ubp, color="k", lw=1.5, label="MC OA", marker="s")
     plot(di:di:nbit, ubd, color="olive", marker="o", linestyle="--",
-        label="Inner strat.")
+        label="MC IA")
+
+    # display confidence interval
+    if conf
+        plot(di:di:nbit, ubd + tol*stdd/√nscen, color="darkgreen", alpha=.5, lw=1, linestyle=":")
+        plot(di:di:nbit, ubd - tol*stdd/√nscen, color="darkgreen", alpha=.5, lw=1, linestyle=":")
+        plot(di:di:nbit, ubp + tol*stdp/√nscen, color="k", lw=1, linestyle="--")
+        plot(di:di:nbit, ubp - tol*stdp/√nscen, color="k", lw=1, linestyle="--")
+        #= plot(ΔI:ΔI:MAXIT, ubp + tol2*stdp/√nscen, color="k", lw=1, linestyle=":") =#
+        #= plot(ΔI:ΔI:MAXIT, ubp - tol2*stdp/√nscen, color="k", lw=1, linestyle=":") =#
+        fill_between(di:di:nbit, ubp - tol*stdp/√nscen, ubp + tol*stdp/√nscen,
+                    color="grey", alpha=.4, label="Confidence ($(100*.975)%)")
+    end
 
     legend(loc=4)
     xlabel("Iterations")
     ylim(.99lbprimal, 1.01lbprimal)
     tight_layout()
+
 end

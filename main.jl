@@ -1,9 +1,15 @@
 # Run dual SDDP on dual of dam1
+using JuMP, StochDynamicProgramming, Clp, Gurobi
+using Gurobi
+using Clustering
+
+const SDDP = StochDynamicProgramming
 
 include("utils.jl")
 include("config.jl")
 include("dualutils.jl")
 include("dualsddp.jl")
+include("data.jl")
 include("mpts2.jl")
 include("innerapprox.jl")
 
@@ -14,7 +20,7 @@ MAXIT  = 1000
 NSIMU  = 1000
 MCSIZE = 1000
 # 1: Primal SDDP   2: Dual SDDP    3: Mix primal / dual
-ALGO = 3
+ALGO = 1
 PRIMAL = true
 DUAL   = false
 ΔMC = 100
@@ -46,5 +52,3 @@ println("-------")
 println("Primal LB:\t", lbprimal)
 println("Dual UB:\t", ubdual)
 println("Gap:\t", abs(lbprimal-ubdual)/lbprimal)
-
-
