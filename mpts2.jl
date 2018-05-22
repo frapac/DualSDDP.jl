@@ -7,108 +7,70 @@
 
 ################################################################################
 # PROBLEM DEFINITION
-# import data from MPTS
-### DEFINE HERE TOTAL NUMBER OF STAGES
-NSTAGES = 3
-### DEFINE HERE NUMBER OF NODES TO CONSIDER
-NODES = 2
 
-if NODES == 2
-    NAMES = [:GER, :FRA]
-elseif NODES == 4
-    NAMES = [:FRA, :GER, :ESP, :UK]
-elseif NODES == 7
-    NAMES = [:FRA, :GER, :ESP, :UK, :PT, :ITA, :SUI]
-elseif NODES == 8
-    NAMES = [:FRA, :GER, :ESP, :UK, :PT, :ITA, :SUI, :BEL]
+#= if NODES == 2 =#
+#=     NAMES = [:GER, :FRA] =#
+#= elseif NODES == 4 =#
+#=     NAMES = [:FRA, :GER, :ESP, :UK] =#
+#= elseif NODES == 7 =#
+#=     NAMES = [:FRA, :GER, :ESP, :UK, :PT, :ITA, :SUI] =#
+#= elseif NODES == 8 =#
+#=     NAMES = [:FRA, :GER, :ESP, :UK, :PT, :ITA, :SUI, :BEL] =#
+#= end =#
+
+"Store MPTS problem inside a dedicated structure."
+struct MPTS
+    # zones' names
+    names
+    # state upper bound
+    XMAX
+    # turbinate upper bound
+    UTURB
+    # thermal prod. upper bound
+    UTHERM
+    # initial position
+    X0
+    # node-arc incidence matrix
+    R
+    # thermal cost along time
+    CTHERM
+    # maximum transport through edges
+    QMAX
+    # number of stagges
+    nstages::Int
+    # number of nodes
+    nzones::Int
+    # number of arcs
+    narcs::Int
+    # quantization size to discretize scenarios
+    nbins::Int
+    # noise laws
+    laws
 end
+function MPTS(names, nstages, nbins)
+    nzones = length(names)
+    XMAX, UTURB, UTHERM, X0, R, CTHERM_RAW, QMAX = getglobalparams(names)
+    narcs  = size(R, 2)
+    CTHERM = CTHERM_RAW .+ 15*rand(nzones, nstages)
+    laws = fitgloballaw(names, nstages, nbins, nscen=50)
 
-begin const
-    XMAX, UTURB, UTHERM, X0, R, CTHERM_RAW, QMAX = getglobalparams(NAMES)
-    NZONES = length(CTHERM_RAW)
-    NARCS  = size(R, 2)
-    CTHERM = CTHERM_RAW .+ 15*rand(NZONES, NSTAGES)
-    NBINS  = 10
+    return MPTS(names, XMAX, UTURB, UTHERM, X0, R, CTHERM, QMAX, nstages,
+                nzones, narcs, nbins, laws)
 end
 
 "Return primal cost at time `t` as a vector."
-getcost(t::Int) = [zeros(NZONES);
-                   zeros(NZONES);
-                   CTHERM[:, t];
-                   DATA["CPENAL"]*ones(NZONES);
-                   DATA["CTRANS"]*ones(Float64, NARCS)]
+getcost(t::Int, mpts::MPTS) = [zeros(mpts.nzones);
+                               zeros(mpts.nzones);
+                               mpts.CTHERM[:, t];
+                               DATA["CPENAL"]*ones(mpts.nzones);
+                               DATA["CTRANS"]*ones(Float64, mpts.narcs)]
 
-
-################################################################################
-# SCENARIO TREE DEFINITION
-"""Quantize scenarios with KMeans quantization.  """
-function optquantiz(scenarios, nbins; scale=true)
-    # fix seed for reproductability
-    srand(2713)
-    ntime, nscenarios, nperturb = size(scenarios)
-
-    output = Vector{NoiseLaw}(ntime)
-
-    for t in 1:ntime
-        data = copy(reshape(scenarios[t, :, :], nscenarios, nperturb)')
-        # Launch kmeans:
-        if scale
-            μ    = mean(data, 2)
-            σ    = std(data, 2)
-            data = data .- μ
-            pos  = vec(σ .> 0)
-            data[pos, :] = data[pos, :] ./ σ[pos]
-        end
-        quantiz = kmeans(data, nbins)
-
-        center =  quantiz.centers
-        if scale
-            center = σ .* quantiz.centers .+ μ
-        end
-        output[t] = NoiseLaw(center, 1/nscenarios*quantiz.counts)
-    end
-
-    return output
-end
-
-"Fit global noise laws corresponding to countries specified in `names`."
-function fitgloballaw(names, nstages, nbins, Δt; nscen=10)
-
-    nzones = length(names)
-    scenarios = zeros(Float64, nstages, nscen, 2*nzones)
-
-    ntime = 50
-
-    for (idx, name) in enumerate(names)
-        # inflow (in GWh)
-        inflow = 24*readcsv("data/scen/$name/inflow.txt")[1:nscen, 1:ntime]
-        # demand (in GWh)
-        demand = 24*readcsv("data/scen/$name/demands.txt")[1:nscen, 1:ntime]
-
-        nscen = size(inflow, 1)
-        _inflow = zeros(nscen, nstages)
-        _demand = zeros(nscen, nstages)
-
-        # get monthly average
-        for nn in 1:nstages
-            s1 = nn
-            s2 = nn + 1
-            _inflow[:, nn] = sum(inflow[:, s1:s2], 2)
-            _demand[:, nn] = sum(demand[:, s1:s2], 2)
-        end
-
-        scenarios[:, :, idx] = _inflow'
-        scenarios[:, :, idx+nzones] = _demand'
-    end
-
-    return optquantiz(scenarios, nbins)
-end
 
 ################################################################################
 # MATRIX
 """Build matrix corresponding to the damsvalley"""
-function MPTSmatrix()
-    nzones, narcs = size(R)
+function MPTSmatrix(mpts::MPTS)
+    nzones, narcs = size(mpts.R)
 
     I = eye(nzones)
     Iq = eye(narcs)
@@ -142,13 +104,13 @@ function MPTSmatrix()
          O O O -I Oq; # utherm min
          Oq2 Oq2 Oq2 Oq2 Iq; # q max
          Oq2 Oq2 Oq2 Oq2 -Iq; # q min
-         I O I I R; # u + Rq = w
+         I O I I mpts.R; # u + Rq = w
          B; # xf max
          -B] # xf min
     # lots of constraints :(
     # nc = 10 * nzones + 2 * narcs
 
-    balance = [I O I I R]
+    balance = [I O I I mpts.R]
     Gt = [O I]
 
     return A, B, D, E, Gt, C,  balance
@@ -159,40 +121,38 @@ end
 ################################################################################
 # PRIMAL PROBLEM
 "Build primal SP model."
-function build_model()
-    dt = 30
-    laws = fitgloballaw(NAMES, NSTAGES, NBINS, dt, nscen=50)
-    nzones, narcs = size(R)
+function build_model(mpts::MPTS)
+    nzones, narcs = size(mpts.R)
 
-    A, B, D, E, Gt, C, balance = MPTSmatrix()
+    A, B, D, E, Gt, C, balance = MPTSmatrix(mpts)
 
     dynamic(t, x, u, w) = A*x+ B*u + C*w
     constr(t, x, u, w) = balance * u - Gt * w
-    cost_t(t, x, u, w) = dot(getcost(t), u)
+    cost_t(t, x, u, w) = dot(getcost(t, mpts), u)
 
     # Build bounds:
-    x_bounds = [(0, xub) for xub in XMAX]
+    x_bounds = [(0, xub) for xub in mpts.XMAX]
     u_bounds = vcat(
-                [(0, uub) for uub in UTURB],
-                [(0, Inf) for uub in UTURB],
-                [(0, tub) for tub in UTHERM],
-                [(0, Inf) for uub in UTURB],
-                [(-f, f) for f in QMAX])
+                [(0, uub) for uub in mpts.UTURB],
+                [(0, Inf) for uub in mpts.UTURB],
+                [(0, tub) for tub in mpts.UTHERM],
+                [(0, Inf) for uub in mpts.UTURB],
+                [(-f, f) for f in mpts.QMAX])
 
     function finalcost(model, m)
         alpha = m[:alpha]
         xf = m[:xf]
         z = @JuMP.variable(m, [1:nzones], lowerbound=0)
-        @JuMP.constraint(m, z[i=1:nzones] .>= X0 - xf)
+        @JuMP.constraint(m, z[i=1:nzones] .>= mpts.X0 - xf)
         @JuMP.constraint(m, alpha == DATA["COST_HF"]*sum(z))
     end
 
-    model = SDDP.LinearSPModel(NSTAGES,       # number of timestep
+    model = SDDP.LinearSPModel(mpts.nstages,       # number of timestep
                                u_bounds, # control bounds
-                               X0,       # initial state
+                               mpts.X0,       # initial state
                                cost_t,   # cost function
                                dynamic,  # dynamic function
-                               laws,
+                               mpts.laws,
                                Vfinal=finalcost,
                                eqconstr=constr
                               )
@@ -204,8 +164,8 @@ end
 ################################################################################
 # DUAL PROBLEM
 """Build dual problem of MPTS."""
-function buildemptydual(laws)
-    nzones, narcs = size(R)
+function buildemptydual(mpts::MPTS)
+    nzones, narcs = size(mpts.R)
     # Damsvalley configuration:
     x0 = [-3156.06 for i in 1:nzones]
     x_bounds = [(-1e4, 1e4) for i in 1:nzones];
@@ -218,12 +178,12 @@ function buildemptydual(laws)
     constdual(t, x, u, w) = 0.
     cost_t(t, x, u, w) = 0.
 
-    model = SDDP.LinearSPModel(NSTAGES,       # number of timestep
+    model = SDDP.LinearSPModel(mpts.nstages,       # number of timestep
                                u_bounds, # control bounds
                                x0,       # initial state
                                cost_t,   # cost function
                                dynamic,  # dynamic function
-                               laws,
+                               mpts.laws,
                                info=:DH,
                                eqconstr=constdual
                               )
@@ -233,15 +193,25 @@ end
 
 
 """Build model in Decision-Hazard."""
-function build_model_dual(model, param, t)
-    nzones, narcs = size(R)
+function build_model_dual(mpts::MPTS, model, param, t)
+    nzones, narcs = size(mpts.R)
 
     ndams = model.dimStates
-    A, B, D, E, Gt, C, balance = MPTSmatrix()
+    A, B, D, E, Gt, C, balance = MPTSmatrix(mpts)
     i = ones(Float64, nzones)
     o = zeros(Float64, nzones)
 
-    getrhs(w, j) = -[UTURB;o;o;UTHERM;o;o;QMAX;QMAX; Gt*w[: ,j];XMAX - C*w[:, j];C*w[:, j]]
+    getrhs(w, j) = -[mpts.UTURB;
+                     o;
+                     o;
+                     mpts.UTHERM;
+                     o;
+                     o;
+                     mpts.QMAX;
+                     mpts.QMAX;
+                     Gt*w[: ,j];
+                     mpts.XMAX - C*w[:, j];
+                     C*w[:, j]]
 
     m = Model(solver=param.SOLVER)
     law = model.noises
@@ -265,7 +235,7 @@ function build_model_dual(model, param, t)
     @constraint(m, sum(πp[j]*(xf[:, j] + D'*u[:, j]) for j in 1:ns) .== x)
 
     # add admissible constraint in dual:
-    c = getcost(t)
+    c = getcost(t, mpts)
     for j=1:ns
         @constraint(m, c + B'*xf[:, j] + E'*u[:, j] .== 0)
     end
@@ -280,7 +250,7 @@ function build_model_dual(model, param, t)
         for j=1:ns
             @constraint(m, xf[:, j] .<= 0)
             @constraint(m, xf[:, j] .>= -DATA["COST_HF"])
-            @constraint(m, alpha[j] == dot(X0, xf[:, j]))
+            @constraint(m, alpha[j] == dot(mpts.X0, xf[:, j]))
         end
     end
 

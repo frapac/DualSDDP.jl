@@ -9,8 +9,8 @@
 const LIPSCHITZ = 10e5
 
 "Define Linear Bellman Operator model with JuMP."
-function initdual!(sddp)
-    ms = JuMP.Model[build_model_dual(sddp.spmodel, sddp.params, t) for t=1:sddp.spmodel.stageNumber-1]
+function initdual!(mpts, sddp)
+    ms = JuMP.Model[build_model_dual(mpts, sddp.spmodel, sddp.params, t) for t=1:sddp.spmodel.stageNumber-1]
     # set JuMP model inside SDDP object
     sddp.solverinterface = ms
 end

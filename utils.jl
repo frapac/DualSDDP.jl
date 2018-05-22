@@ -8,8 +8,6 @@
 
 SOLVER = Gurobi.GurobiSolver(OutputFlag=false, Threads=1)
 
-# problem
-srand(1111)
 
 "Get SDDP parameters for StochDynamicProgramming."
 function getparams(;maxit=50, nbsimu=1000, Δub=100, Δprune=100)

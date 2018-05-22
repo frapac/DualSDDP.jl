@@ -7,8 +7,8 @@
 
 
 """Init primal SDDP interface"""
-function initprimal(;maxit=100)
-    model = build_model()
+function initprimal(mpts; maxit=100)
+    model = build_model(mpts)
     params = getparams()
     # init SDDP interface
     sddpprimal = SDDPInterface(model, params, SDDP.IterLimit(maxit),
@@ -19,12 +19,12 @@ end
 
 
 """Init dual SDDP interface"""
-function initdual(sddp; maxit=100)
-    modeldual = buildemptydual(sddp.spmodel.noises)
+function initdual(mpts::MPTS, sddp; maxit=100)
+    modeldual = buildemptydual(mpts, sddp.spmodel.noises)
     sddpdual = SDDPInterface(modeldual, sddp.params,
                             SDDP.IterLimit(maxit),
                             verbose_it=0)
-    initdual!(sddpdual)
+    initdual!(mpts, sddpdual)
     return sddpdual
 end
 
@@ -66,6 +66,7 @@ function rundual!(sddpdual, sddpprimal; nbsimu=100, maxiterations=100,
                  Δsimu=100)
     ubd = Float64[]
     stdd = Float64[]
+    X0 = sddpprimal.spmodel.initialState
 
     # Run 1 combined iteration to init cuts in sddpdual
     for iter in 1:1
@@ -111,6 +112,7 @@ function runjoint!(sddpprimal, sddpdual; nbsimu=100, maxiterations=100,
     ubp = []
     stdp = []
 
+    X0 = sddpprimal.spmodel.initialState
     # generate scenarios to estimate statistical UB
     scen = SDDP.simulate_scenarios(sddpdual.spmodel.noises, nbsimu)
 

@@ -3,7 +3,7 @@
 # SDDP dual
 ################################################################################
 # optimization packages
-using JuMP, StochDynamicProgramming, Clp
+using JuMP, StochDynamicProgramming
 # use Gurobi as LP solver
 using Gurobi
 # import Clustering for kmeans quantization of noises
@@ -11,34 +11,36 @@ using Clustering
 
 const SDDP = StochDynamicProgramming
 
+# fix seed for reproductability
+srand(1111)
 # utililities
 include("utils.jl")
 include("dualutils.jl")
-include("dualsddp.jl")
 include("data.jl")
+include("noises.jl")
 include("mpts2.jl")
+include("dualsddp.jl")
 include("innerapprox.jl")
 
 
 # params
 SAVE   = false
-MAXIT  = 100
-NSIMU  = 1000
-MCSIZE = 1000
 # 1: Primal SDDP   2: Dual SDDP    3: Mix primal / dual
-ALGO = 3
-ΔMC = 100
+ALGO = 1
+
+# define a production transport problem MPTS
+mpts = MPTS([:FRA, :GER], 3, 10)
 
 # Init SDDP interface
-sddpprimal = initprimal()
+sddpprimal = initprimal(mpts)
 
 if ALGO == 1
     ubp, stdp = runprimal!(sddpprimal)
 elseif ALGO == 2
-    sddpdual = initdual(sddpprimal)
+    sddpdual = initdual(mpts, sddpprimal)
     lbdual, timedual = rundual!(sddpdual, sddpprimal)
 elseif ALGO == 3
-    sddpdual = initdual(sddpprimal)
+    sddpdual = initdual(mpts, sddpprimal)
     lbdual, timedual, ubp, stdp = runjoint!(sddpprimal, sddpdual)
     # recalibrate dual time
     timedual -= sddpprimal.stats.exectime
@@ -47,11 +49,13 @@ end
 
 ### RESULTS
 lbprimal = sddpprimal.stats.lower_bounds[end]
-ubdual = lbdual[end]
 
 println("#"^70)
-println("Results --- $MAXIT iterations")
+println("Results")
 println("-------")
 println("Primal LB:\t", lbprimal)
-println("Dual UB:\t", ubdual)
-println("Gap:\t", abs(lbprimal-ubdual)/lbprimal)
+if ALGO >= 2
+    ubdual = lbdual[end]
+    println("Dual UB:\t", ubdual)
+    println("Gap:\t", abs(lbprimal-ubdual)/lbprimal)
+end
