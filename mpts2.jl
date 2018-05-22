@@ -1,8 +1,17 @@
+################################################################################
+# CERMICS, ENPC
+# SDDP dual
+################################################################################
+# Build primal and dual SP problems.
+################################################################################
 
-
+################################################################################
+# PROBLEM DEFINITION
 # import data from MPTS
+### DEFINE HERE TOTAL NUMBER OF STAGES
 NSTAGES = 3
 α = 1 #/30 #13 / NSTAGES
+### DEFINE HERE NUMBER OF NODES TO CONSIDER
 NODES = 2
 
 if NODES == 2
@@ -15,23 +24,28 @@ elseif NODES == 8
     NAMES = [:FRA, :GER, :ESP, :UK, :PT, :ITA, :SUI, :BEL]
 end
 
-XMAX, UTURB, UTHERM, X0, R, CTHERM_RAW, QMAX = getglobalparams(NAMES)
-UTURB  *= α
-UTHERM *= α
-QMAX   *= α
-NZONES = length(CTHERM_RAW)
-NARCS  = size(R, 2)
-CTHERM = CTHERM_RAW .+ 15*rand(NZONES, NSTAGES)
-NBINS  = 10
-SCEN   = "4"
+begin const
+    XMAX, UTURB, UTHERM, X0, R, CTHERM_RAW, QMAX = getglobalparams(NAMES)
+    UTURB  *= α
+    UTHERM *= α
+    QMAX   *= α
+    NZONES = length(CTHERM_RAW)
+    NARCS  = size(R, 2)
+    CTHERM = CTHERM_RAW .+ 15*rand(NZONES, NSTAGES)
+    NBINS  = 10
+    SCEN   = "4"
 
-COST_HF = 3000
-CPENAL = 3000
-CTRANS = 1
+    COST_HF = 3000
+    CPENAL = 3000
+    CTRANS = 1
+end
 
+"Return primal cost at time `t` as a vector."
 getcost(t::Int) = [zeros(NZONES); zeros(NZONES); CTHERM[:, t]; CPENAL*ones(NZONES); CTRANS*ones(Float64, NARCS)]
 
 
+################################################################################
+# SCENARIO TREE DEFINITION
 """Quantize scenarios with KMeans quantization.  """
 function optquantiz(scenarios, nbins; scale=true)
     # fix seed for reproductability
@@ -62,6 +76,7 @@ function optquantiz(scenarios, nbins; scale=true)
     return output
 end
 
+"Fit global noise laws corresponding to countries specified in `names`."
 function fitgloballaw(names, nstages, nbins, Δt; nscen=10)
 
     nzones = length(names)
@@ -94,7 +109,8 @@ function fitgloballaw(names, nstages, nbins, Δt; nscen=10)
     return optquantiz(scenarios, nbins)
 end
 
-
+################################################################################
+# MATRIX
 """Build matrix corresponding to the damsvalley"""
 function MPTSmatrix()
     nzones, narcs = size(R)
@@ -115,9 +131,6 @@ function MPTSmatrix()
     B = - [I I O O Oq]
     # dimC: nx x nw
     C = [I O]
-
-
-    #= c = [o; o; CTHERM; CPENAL*i; CPENAL*i ; CTRANS*ones(Float64, narcs)] =#
 
     # Dx + Eu <= Gw
     # we note nc the number of constraints
@@ -142,13 +155,59 @@ function MPTSmatrix()
 
     balance = [I O I I R]
     Gt = [O I]
-    #= G = [UTURB; o; o; UTHERM*i; o; o; o; o; qmax; -qmax; o; XMAX; o] =#
-
 
     return A, B, D, E, Gt, C,  balance
 end
 
 
+
+################################################################################
+# PRIMAL PROBLEM
+"Build primal SP model."
+function build_model()
+    dt = 30
+    laws = fitgloballaw(NAMES, NSTAGES, NBINS, dt, nscen=50)
+    nzones, narcs = size(R)
+
+    A, B, D, E, Gt, C, balance = MPTSmatrix()
+
+    dynamic(t, x, u, w) = A*x+ B*u + C*w
+    constr(t, x, u, w) = balance * u - Gt * w
+    cost_t(t, x, u, w) = dot(getcost(t), u)
+
+    # Build bounds:
+    x_bounds = [(0, xub) for xub in XMAX]
+    u_bounds = vcat(
+                [(0, uub) for uub in UTURB],
+                [(0, Inf) for uub in UTURB],
+                [(0, tub) for tub in UTHERM],
+                [(0, Inf) for uub in UTURB],
+                [(-f, f) for f in QMAX])
+
+    function finalcost(model, m)
+        alpha = m[:alpha]
+        xf = m[:xf]
+        z = @JuMP.variable(m, [1:nzones], lowerbound=0)
+        @JuMP.constraint(m, z[i=1:nzones] .>= X0 - xf)
+        @JuMP.constraint(m, alpha == COST_HF*sum(z))
+    end
+
+    model = SDDP.LinearSPModel(NSTAGES,       # number of timestep
+                               u_bounds, # control bounds
+                               X0,       # initial state
+                               cost_t,   # cost function
+                               dynamic,  # dynamic function
+                               laws,
+                               Vfinal=finalcost,
+                               eqconstr=constr
+                              )
+    SDDP.set_state_bounds(model, x_bounds)
+    return model
+end
+
+
+################################################################################
+# DUAL PROBLEM
 """Build dual problem of MPTS."""
 function buildemptydual(laws)
     nzones, narcs = size(R)
@@ -236,48 +295,4 @@ function build_model_dual(model, param, t)
     m.ext[:ncuts] = 0
 
     return m
-end
-
-
-function build_model()
-    dt = 30 #div(360, NSTAGES)
-    laws = fitgloballaw(NAMES, NSTAGES, NBINS, dt, nscen=50)
-    nzones, narcs = size(R)
-
-    # R = buildincidence
-    A, B, D, E, Gt, C, balance = MPTSmatrix()
-
-    dynamic(t, x, u, w) = A*x+ B*u + C*w
-    constr(t, x, u, w) = balance * u - Gt * w
-    cost_t(t, x, u, w) = dot(getcost(t), u)
-
-    # Build bounds:
-    x_bounds = [(0, xub) for xub in XMAX]
-    u_bounds = vcat(
-                [(0, uub) for uub in UTURB],
-                [(0, Inf) for uub in UTURB],
-                [(0, tub) for tub in UTHERM],
-                [(0, Inf) for uub in UTURB],
-                [(-f, f) for f in QMAX])
-
-    function finalcost(model, m)
-        alpha = m[:alpha]
-        xf = m[:xf]
-        z = @JuMP.variable(m, [1:nzones], lowerbound=0)
-        @JuMP.constraint(m, z[i=1:nzones] .>= X0 - xf)
-        @JuMP.constraint(m, alpha == COST_HF*sum(z))
-    end
-    #= finalcost = nothing =#
-
-    model = SDDP.LinearSPModel(NSTAGES,       # number of timestep
-                               u_bounds, # control bounds
-                               X0,       # initial state
-                               cost_t,   # cost function
-                               dynamic,  # dynamic function
-                               laws,
-                               Vfinal=finalcost,
-                               eqconstr=constr
-                              )
-    SDDP.set_state_bounds(model, x_bounds)
-    return model
 end

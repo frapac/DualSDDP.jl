@@ -1,12 +1,18 @@
-# Run dual SDDP on dual of dam1
-using JuMP, StochDynamicProgramming, Clp, Gurobi
+################################################################################
+# CERMICS, ENPC
+# SDDP dual
+################################################################################
+# optimization packages
+using JuMP, StochDynamicProgramming, Clp
+# use Gurobi as LP solver
 using Gurobi
+# import Clustering for kmeans quantization of noises
 using Clustering
 
 const SDDP = StochDynamicProgramming
 
+# utililities
 include("utils.jl")
-include("config.jl")
 include("dualutils.jl")
 include("dualsddp.jl")
 include("data.jl")
@@ -39,7 +45,6 @@ elseif ALGO == 3
     # recalibrate dual time
     timedual -= sddpprimal.stats.exectime
 end
-
 
 
 ### RESULTS

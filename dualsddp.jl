@@ -1,10 +1,17 @@
+################################################################################
+# CERMICS, ENPC
+# SDDP dual
+################################################################################
+# SDDP dual code.
+################################################################################
 
 
 """Init primal SDDP interface"""
-function initprimal()
+function initprimal(;maxit=100)
     model = build_model()
     params = getparams()
-    sddpprimal = SDDPInterface(model, params, SDDP.IterLimit(MAX_ITER),
+    # init SDDP interface
+    sddpprimal = SDDPInterface(model, params, SDDP.IterLimit(maxit),
                                verbose_it=10)
     SDDP.init!(sddpprimal)
     return sddpprimal
@@ -12,10 +19,10 @@ end
 
 
 """Init dual SDDP interface"""
-function initdual(sddp)
+function initdual(sddp; maxit=100)
     modeldual = buildemptydual(sddp.spmodel.noises)
     sddpdual = SDDPInterface(modeldual, sddp.params,
-                            SDDP.IterLimit(MAX_ITER),
+                            SDDP.IterLimit(100),
                             verbose_it=0)
     initdual!(sddpdual)
     return sddpdual
@@ -23,23 +30,27 @@ end
 
 
 """Run SDDP primal alone."""
-function runprimal!(sddpprimal)
+function runprimal!(sddpprimal; nbsimu=100)
     println("RUN PRIMAL SDDP")
     ubp = []
     stdp = []
-    scen = SDDP.simulate_scenarios(sddpprimal.spmodel.noises, MCSIZE)
+    scen = SDDP.simulate_scenarios(sddpprimal.spmodel.noises, nbsimu)
 
     tic()
     for iter in 1:MAXIT
+        # run a single SDDP iteration with StochDynamicProgramming
         SDDP.iteration!(sddpprimal)
 
+        # compute statistical upper bound
         if iter % ΔMC == 0
             cost = SDDP.simulate(sddpprimal, scen)[1]
             push!(ubp, mean(cost))
             push!(stdp, std(cost))
         end
+        # reload JuMP model to avoid memory leak
         (iter % 10 == 0) && SDDP.reload!(sddpprimal)
     end
+
     texec = toq()
     println("Primal exec time: ", texec)
     SAVE && writecsv("lbprimal", sddpprimal.stats.lower_bounds)
@@ -50,11 +61,11 @@ end
 
 
 """Run SDDP dual alone"""
-function rundual!(sddpdual, sddpprimal)
+function rundual!(sddpdual, sddpprimal; nbsimu=100)
     ubd = []
     stdd = []
     srand(2713)
-    scen = SDDP.simulate_scenarios(sddpdual.spmodel.noises, MCSIZE)
+    scen = SDDP.simulate_scenarios(sddpdual.spmodel.noises, nbsimu)
 
     # Run 1 combined iteration to init cuts in sddpdual
     for iter in 1:1
@@ -92,12 +103,12 @@ end
 
 
 """Run jointly primal and dual SDDPs."""
-function runjoint!(sddpprimal, sddpdual)
+function runjoint!(sddpprimal, sddpdual; nbsimu=100)
     lbdual = Float64[]
     timedual = Float64[]
     ubp = []
     stdp = []
-    scen = SDDP.simulate_scenarios(sddpdual.spmodel.noises, MCSIZE)
+    scen = SDDP.simulate_scenarios(sddpdual.spmodel.noises, nbsimu)
     println("RUN DUAL SDDP")
     tic()
 
@@ -127,5 +138,4 @@ function runjoint!(sddpprimal, sddpdual)
     println("Total exec time: ", texec)
 
     return lbdual, timedual, ubp, stdp
-
 end

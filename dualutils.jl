@@ -1,11 +1,17 @@
+################################################################################
+# CERMICS, ENPC
+# SDDP dual
+################################################################################
 # Write dual version of problems in problem.jl
+################################################################################
 
 # Lipschitz constant
-LIPSCHITZ = 10e5
+const LIPSCHITZ = 10e5
 
-"""Overwrite JuMP Model in `sddp` to consider dual version."""
+"Define Linear Bellman Operator model with JuMP."
 function initdual!(sddp)
     ms = JuMP.Model[build_model_dual(sddp.spmodel, sddp.params, t) for t=1:sddp.spmodel.stageNumber-1]
+    # set JuMP model inside SDDP object
     sddp.solverinterface = ms
 end
 
@@ -26,16 +32,18 @@ function dualbound(sddpdual, x)
 
     @objective(m, Max, dot(x, p) - θ)
     status = solve(m)
+
+    # if solution is not optimal, raise an error
     if status != :Optimal
         println(m)
         println(getvalue(p))
-        error("Bang")
+        error("Starting point not found in dual SDDP.")
     end
     return getobjectivevalue(m), getvalue(p)
 end
 
 
-"""Change initial co-state for dual SDDP."""
+"""Change initial co-state in interface of dual SDDP."""
 function updateinitialstate!(sddpdual, x)
     lb, p0 = dualbound(sddpdual, x)
     sddpdual.spmodel.initialState = p0

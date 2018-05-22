@@ -1,4 +1,3 @@
-
 ################################################################################
 ################################################################################
 # SDDP DUAL
@@ -12,18 +11,18 @@ SOLVER = Gurobi.GurobiSolver(OutputFlag=false, Threads=1)
 # problem
 srand(1111)
 
-
-function getparams()
-    params = SDDP.SDDPparameters(SOLVER, passnumber=FORWARD_PASS,
-                                 gap=EPSILON, max_iterations=MAX_ITER,
-                                 confidence=CONFIDENCE_LEVEL,
-                                 montecarlo_in_iter=MONTE_CARLO_SIZE,
-                                 montecarlo_final=FINAL_MONTE_CARLO_SIZE,
-                                 prune_cuts=PRUNE_CUTS,
+"Get SDDP parameters for StochDynamicProgramming."
+function getparams(;maxit=50, nbsimu=1000, Δub=100, Δprune=100)
+    params = SDDP.SDDPparameters(SOLVER, passnumber=1,
+                                 gap=0.001, max_iterations=maxit,
+                                 confidence=.975,
+                                 montecarlo_in_iter=nbsimu,
+                                 montecarlo_final=nbsimu,
+                                 prune_cuts=Δprune,
                                  pruning_algo="exact+",
                                  rho0=0, alpha=.95)
-    params.compute_ub = UPPER_BOUND
-    params
+    params.compute_ub = Δub
+    return params
 end
 
 """Build incidence matrix and return flows' bounds."""

@@ -1,8 +1,18 @@
+################################################################################
+# CERMICS, ENPC
+# SDDP dual
+################################################################################
+# Inner strategy and joint strategy
+################################################################################
 
+"Build inner approx LBO with value function `V` inside JuMP model `m`."
 function build_inner_approx!(m, V)
     # m stores the initial model
+    # future states
     xf = m[:xf]
+    # cost-to-go
     alpha = m[:alpha]
+    # number of cuts
     ncuts = V.numCuts
 
     # define simplex Λ
@@ -15,7 +25,10 @@ function build_inner_approx!(m, V)
 end
 
 
+"Build joint approx LBO with value function `V` inside JuMP model `m`."
 function build_joint_approx!(m, Vdual, Vprimal, ω)
+    @assert 0 <= ω <= 1
+
     # m stores the initial model
     xf = m[:xf]
     alpha = m[:alpha]
