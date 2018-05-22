@@ -22,7 +22,7 @@ end
 function initdual(sddp; maxit=100)
     modeldual = buildemptydual(sddp.spmodel.noises)
     sddpdual = SDDPInterface(modeldual, sddp.params,
-                            SDDP.IterLimit(100),
+                            SDDP.IterLimit(maxit),
                             verbose_it=0)
     initdual!(sddpdual)
     return sddpdual
@@ -30,19 +30,20 @@ end
 
 
 """Run SDDP primal alone."""
-function runprimal!(sddpprimal; nbsimu=100)
+function runprimal!(sddpprimal; nbsimu=100, maxiterations=100,
+                   Δsimu=100)
     println("RUN PRIMAL SDDP")
     ubp = []
     stdp = []
     scen = SDDP.simulate_scenarios(sddpprimal.spmodel.noises, nbsimu)
 
     tic()
-    for iter in 1:MAXIT
+    for iter in 1:maxiterations
         # run a single SDDP iteration with StochDynamicProgramming
         SDDP.iteration!(sddpprimal)
 
         # compute statistical upper bound
-        if iter % ΔMC == 0
+        if iter % Δsimu == 0
             cost = SDDP.simulate(sddpprimal, scen)[1]
             push!(ubp, mean(cost))
             push!(stdp, std(cost))
@@ -61,11 +62,10 @@ end
 
 
 """Run SDDP dual alone"""
-function rundual!(sddpdual, sddpprimal; nbsimu=100)
-    ubd = []
-    stdd = []
-    srand(2713)
-    scen = SDDP.simulate_scenarios(sddpdual.spmodel.noises, nbsimu)
+function rundual!(sddpdual, sddpprimal; nbsimu=100, maxiterations=100,
+                 Δsimu=100)
+    ubd = Float64[]
+    stdd = Float64[]
 
     # Run 1 combined iteration to init cuts in sddpdual
     for iter in 1:1
@@ -80,9 +80,9 @@ function rundual!(sddpdual, sddpprimal; nbsimu=100)
     println("RUN DUAL SDDP")
     lb = updateinitialstate!(sddpdual, X0)
     tic()
-    for iter in 1:MAXIT
-        # Update initial costate
+    for iter in 1:maxiterations
         tic()
+        # Update initial costate
         lb = updateinitialstate!(sddpdual, X0)
 
         # Run forward an backward pass
@@ -103,35 +103,50 @@ end
 
 
 """Run jointly primal and dual SDDPs."""
-function runjoint!(sddpprimal, sddpdual; nbsimu=100)
+function runjoint!(sddpprimal, sddpdual; nbsimu=100, maxiterations=100,
+                  Δsimu=100)
+    # evolution of UB and LB
     lbdual = Float64[]
     timedual = Float64[]
     ubp = []
     stdp = []
+
+    # generate scenarios to estimate statistical UB
     scen = SDDP.simulate_scenarios(sddpdual.spmodel.noises, nbsimu)
+
     println("RUN DUAL SDDP")
+
+    # Time counter
     tic()
 
-    for iter in 1:MAXIT
+    # Run SDDP iterations
+    for iter in 1:maxiterations
+        tic()
         # perform a mixed iteration between primal and dual SDDP
         td = SDDP.iteration!(sddpprimal, sddpdual)
-        tic()
+
+        # update initial co-state
         lb = updateinitialstate!(sddpdual, X0)
-        # run a forward cuts in dual
+        # run a CUPPS forward pass in dual
         SDDP.fwdcuts(sddpdual)
+
+        # reupdate initial co-state
         lb = updateinitialstate!(sddpdual, X0)
         tdual = toq() + td
 
         # save current iterations
         push!(lbdual, lb)
         push!(timedual, tdual)
-        if iter % ΔMC == 0
+
+        # if specified, compute statistical UB
+        if iter % Δsimu == 0
             cost = SDDP.simulate(sddpprimal, scen)[1]
             push!(ubp, mean(cost))
             push!(stdp, std(cost))
         end
 
         (iter % 10 == 0) && displayit(iter, lb)
+        # reload JuMP model to avoid memory leak
         (iter % 10 == 0) && SDDP.reload!(sddpprimal)
     end
     texec = toq()

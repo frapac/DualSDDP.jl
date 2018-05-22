@@ -22,13 +22,11 @@ include("innerapprox.jl")
 
 # params
 SAVE   = false
-MAXIT  = 1000
+MAXIT  = 100
 NSIMU  = 1000
 MCSIZE = 1000
 # 1: Primal SDDP   2: Dual SDDP    3: Mix primal / dual
-ALGO = 1
-PRIMAL = true
-DUAL   = false
+ALGO = 3
 ΔMC = 100
 
 # Init SDDP interface

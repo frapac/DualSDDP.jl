@@ -10,7 +10,6 @@
 # import data from MPTS
 ### DEFINE HERE TOTAL NUMBER OF STAGES
 NSTAGES = 3
-α = 1 #/30 #13 / NSTAGES
 ### DEFINE HERE NUMBER OF NODES TO CONSIDER
 NODES = 2
 
@@ -26,22 +25,18 @@ end
 
 begin const
     XMAX, UTURB, UTHERM, X0, R, CTHERM_RAW, QMAX = getglobalparams(NAMES)
-    UTURB  *= α
-    UTHERM *= α
-    QMAX   *= α
     NZONES = length(CTHERM_RAW)
     NARCS  = size(R, 2)
     CTHERM = CTHERM_RAW .+ 15*rand(NZONES, NSTAGES)
     NBINS  = 10
-    SCEN   = "4"
-
-    COST_HF = 3000
-    CPENAL = 3000
-    CTRANS = 1
 end
 
 "Return primal cost at time `t` as a vector."
-getcost(t::Int) = [zeros(NZONES); zeros(NZONES); CTHERM[:, t]; CPENAL*ones(NZONES); CTRANS*ones(Float64, NARCS)]
+getcost(t::Int) = [zeros(NZONES);
+                   zeros(NZONES);
+                   CTHERM[:, t];
+                   DATA["CPENAL"]*ones(NZONES);
+                   DATA["CTRANS"]*ones(Float64, NARCS)]
 
 
 ################################################################################
@@ -189,7 +184,7 @@ function build_model()
         xf = m[:xf]
         z = @JuMP.variable(m, [1:nzones], lowerbound=0)
         @JuMP.constraint(m, z[i=1:nzones] .>= X0 - xf)
-        @JuMP.constraint(m, alpha == COST_HF*sum(z))
+        @JuMP.constraint(m, alpha == DATA["COST_HF"]*sum(z))
     end
 
     model = SDDP.LinearSPModel(NSTAGES,       # number of timestep
@@ -280,14 +275,12 @@ function build_model_dual(model, param, t)
     @objective(m, Min, sum(πp[j]*(-(dot(C*w[:, j], xf[:, j]) + dot(getrhs(w, j), u[:, j]))
                                   + alpha[j]) for j in 1:ns))
 
-    # take care of final cost: final co-state must equal 0
+    # take care of final cost:
     if t == model.stageNumber - 1
         for j=1:ns
             @constraint(m, xf[:, j] .<= 0)
-            @constraint(m, xf[:, j] .>= -COST_HF)
+            @constraint(m, xf[:, j] .>= -DATA["COST_HF"])
             @constraint(m, alpha[j] == dot(X0, xf[:, j]))
-            #= @constraint(m, xf[:, j] .== 0) =#
-            #= @constraint(m, alpha[j] == 0) =#
         end
     end
 
