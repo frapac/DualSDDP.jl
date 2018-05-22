@@ -20,7 +20,7 @@ end
 
 """Init dual SDDP interface"""
 function initdual(mpts::MPTS, sddp; maxit=100)
-    modeldual = buildemptydual(mpts, sddp.spmodel.noises)
+    modeldual = buildemptydual(mpts)
     sddpdual = SDDPInterface(modeldual, sddp.params,
                             SDDP.IterLimit(maxit),
                             verbose_it=0)

@@ -1,32 +1,17 @@
 ################################################################################
 # CERMICS, ENPC
 # SDDP dual
+# main code
 ################################################################################
-# optimization packages
-using JuMP, StochDynamicProgramming
-# use Gurobi as LP solver
-using Gurobi
-# import Clustering for kmeans quantization of noises
-using Clustering
 
-const SDDP = StochDynamicProgramming
-
-# fix seed for reproductability
 srand(1111)
-# utililities
-include("utils.jl")
-include("dualutils.jl")
-include("data.jl")
-include("noises.jl")
-include("mpts2.jl")
-include("dualsddp.jl")
-include("innerapprox.jl")
 
+include("src/dualSDDP.jl")
 
 # params
 SAVE   = false
 # 1: Primal SDDP   2: Dual SDDP    3: Mix primal / dual
-ALGO = 1
+ALGO = 3
 
 # define a production transport problem MPTS
 mpts = MPTS([:FRA, :GER], 3, 10)
