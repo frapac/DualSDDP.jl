@@ -54,8 +54,6 @@ function runprimal!(sddpprimal; nbsimu=100, maxiterations=100,
 
     texec = toq()
     println("Primal exec time: ", texec)
-    SAVE && writecsv("lbprimal", sddpprimal.stats.lower_bounds)
-    SAVE && writecsv("timeprimal", sddpprimal.stats.exectime)
 
     return ubp, stdp
 end
@@ -97,8 +95,6 @@ function rundual!(sddpdual, sddpprimal; nbsimu=100, maxiterations=100,
     end
     texec = toq()
     println("Dual exec time: ", texec)
-    SAVE && writecsv("lbdual", lbdual)
-    SAVE && writecsv("timedual", sddpdual.stats.exectime)
     return lbdual, timedual
 end
 
