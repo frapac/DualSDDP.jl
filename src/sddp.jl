@@ -12,7 +12,7 @@ function initprimal(mpts; maxit=100)
     params = getparams()
     # init SDDP interface
     sddpprimal = SDDPInterface(model, params, SDDP.IterLimit(maxit),
-                               verbose_it=10)
+                               verbose_it=0)
     SDDP.init!(sddpprimal)
     return sddpprimal
 end
@@ -143,7 +143,11 @@ function runjoint!(sddpprimal, sddpdual; nbsimu=100, maxiterations=100,
             push!(stdp, std(cost))
         end
 
-        (iter % 10 == 0) && displayit(iter, lb)
+        if (iter % 10 == 0)
+            print("Pass n\° ", iter)
+            @printf("\tLB: %.4e ", sddpprimal.stats.lowerbound)
+            @printf("\tUB: %.4e \n", lb)
+        end
         # reload JuMP model to avoid memory leak
         (iter % 10 == 0) && SDDP.reload!(sddpprimal)
     end
