@@ -6,6 +6,12 @@
 ################################################################################
 
 
+struct Trajectory
+    x::Array{Float64, 2}
+    Trajectory(x::Array{Float64, 2}) = new(x)
+    Trajectory(x::Array{Float64, 3}) = new(reshape(x, (size(x, 1), size(x, 3))))
+end
+
 """Init primal SDDP interface"""
 function initprimal(mpts; maxit=100)
     model = build_model(mpts)
@@ -22,8 +28,8 @@ end
 function initdual(mpts::MPTS, sddp; maxit=100)
     modeldual = buildemptydual(mpts)
     sddpdual = SDDPInterface(modeldual, sddp.params,
-                            SDDP.IterLimit(maxit),
-                            verbose_it=0)
+                             SDDP.IterLimit(maxit),
+                             verbose_it=0)
     initdual!(mpts, sddpdual)
     return sddpdual
 end
@@ -37,10 +43,13 @@ function runprimal!(sddpprimal; nbsimu=100, maxiterations=100,
     stdp = []
     scen = SDDP.simulate_scenarios(sddpprimal.spmodel.noises, nbsimu)
 
+    trajs = Trajectory[]
+
     tic()
     for iter in 1:maxiterations
         # run a single SDDP iteration with StochDynamicProgramming
         SDDP.iteration!(sddpprimal)
+        push!(trajs, Trajectory(SDDP.simulate(sddpprimal, 1)[2]))
 
         # compute statistical upper bound
         if iter % Δsimu == 0
@@ -55,7 +64,7 @@ function runprimal!(sddpprimal; nbsimu=100, maxiterations=100,
     texec = toq()
     println("Primal exec time: ", texec)
 
-    return ubp, stdp
+    return ubp, stdp, trajs
 end
 
 

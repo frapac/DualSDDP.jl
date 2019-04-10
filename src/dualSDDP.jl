@@ -6,7 +6,7 @@
 # optimization packages
 using JuMP, StochDynamicProgramming
 # use Gurobi as LP solver
-using Gurobi
+using Xpress
 # import Clustering for kmeans quantization of noises
 using Clustering
 
