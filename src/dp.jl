@@ -24,10 +24,10 @@ function solvedp!(model::SPModel, trajectories::Vector{Trajectory})
     V = zeros(Float64, nstates, TF)
 
     #Compute final value functions
-    #= for (ix, traj) in enumerate(trajectories) =#
-    #=     x = view(traj.x[TF, :], :) =#
-    #=     V[ix, TF] = model.finalCost(x) =#
-    #= end =#
+    for (ix, traj) in enumerate(trajectories)
+        x = view(traj.x[TF, :], :)
+        V[ix, TF] = 3000 * sum(max.(0, model.initialState - x))
+    end
 
     # Loop over time:
     @inbounds for t = (TF-1):-1:1
@@ -98,6 +98,8 @@ function buildlp(model::SPModel, V, t::Int, trajectories)
 
     # define variables in JuMP:
     m.ext[:state] = @variable(m, x[i=1:nx] )
+    @variable(m, y[i=1:nx] )
+    @variable(m, v[1:nx])
     @variable(m, model.ulim[i][1] <= u[i=1:nu] <= model.ulim[i][2])
     @variable(m, w[1:nw])
     # weights to approximate value function, in simplex
@@ -111,9 +113,13 @@ function buildlp(model::SPModel, V, t::Int, trajectories)
     # code the dynamic in the model
     # ∑ α_i V_{t+1}_i - f_t(x, u, w) == 0
     # as x and w are given, we store them in the right hand side (here set to 0.)
-    @constraint(m, -model.dynamics(t, x, u, w) + sum(α[i]*xfgrid[i] for i in 1:nd) .== 0)
+    #= @constraint(m, y .== model.dynamics(t, x, u, w)) =#
+    @constraint(m, -y + sum(α[i]*xfgrid[i] for i in 1:nd) .== 0)
+
+    @constraint(m, v .>= y - model.dynamics(t, x, u, w))
+    @constraint(m, v .>= -y + model.dynamics(t, x, u, w))
     # Define objective function
-    @objective(m, Min, model.costFunctions(t, x, u, w) + sum(α[i]*V[i, t+1] for i in 1:nd))
+    @objective(m, Min, LIPSCHITZ*sum(v) + model.costFunctions(t, x, u, w) + sum(α[i]*V[i, t+1] for i in 1:nd))
 
     return m
 end

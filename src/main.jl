@@ -14,7 +14,8 @@ SAVE   = false
 ALGO = 1
 
 # define a production transport problem MPTS
-mpts = MPTS([:FRA, :GER], 5, 10)
+NAMES = [:FRA, :GER, :ESP, :UK, :PT, :ITA, :SUI, :BEL]
+mpts = MPTS(NAMES, 12, 10)
 
 # Init SDDP interface
 sddpprimal = initprimal(mpts)
