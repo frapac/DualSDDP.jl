@@ -35,7 +35,10 @@ function initdual(mpts::MPTS, sddp; maxit=100)
 end
 
 
-"""Run SDDP primal alone."""
+"""Run SDDP primal alone.
+nbsimu is the number of MonteCarlo scenarios used to evaluate the upper-bound
+every Δsimu iterations. Evaluations returned in ubp, with standard deviation in stdp,
+and trajectories in trajs."""
 function runprimal!(sddpprimal; nbsimu=100, maxiterations=100,
                    Δsimu=100)
     println("RUN PRIMAL SDDP")
@@ -68,7 +71,10 @@ function runprimal!(sddpprimal; nbsimu=100, maxiterations=100,
 end
 
 
-"""Run SDDP dual alone"""
+"""Run SDDP dual alone
+nbsimu is the number of MonteCarlo scenarios used to evaluate the upper-bound
+every Δsimu iterations. Evaluations returned in ubd, with standard deviation in stdd,
+and trajectories in trajs."""
 function rundual!(sddpdual, sddpprimal; nbsimu=100, maxiterations=100,
                  Δsimu=100)
     ubd = Float64[]
@@ -108,14 +114,21 @@ function rundual!(sddpdual, sddpprimal; nbsimu=100, maxiterations=100,
 end
 
 
-"""Run jointly primal and dual SDDPs."""
+"""Run jointly primal and dual SDDPs.
+nbsimu is the number of MonteCarlo scenarios used to evaluate the upper-bound
+every Δsimu iterations. Evaluations returned in ubp, with standard deviation in stdp,
+and trajectories in trajs."""
 function runjoint!(sddpprimal, sddpdual; nbsimu=100, maxiterations=100,
                   Δsimu=100)
     # evolution of UB and LB
-    lbdual = Float64[]
+    ubd = Float64[]
     timedual = Float64[]
-    ubp = []
-    stdp = []
+    ubp_mc = Float64[]
+    c_ia_mc =Float64[]
+    stdp = Float64[]
+    stdia = Float64[]
+
+    trajp = Trajectory[]
 
     X0 = sddpprimal.spmodel.initialState
     # generate scenarios to estimate statistical UB
@@ -131,37 +144,49 @@ function runjoint!(sddpprimal, sddpdual; nbsimu=100, maxiterations=100,
         tic()
         # perform a mixed iteration between primal and dual SDDP
         td = SDDP.iteration!(sddpprimal, sddpdual)
+        # save primal trajectory
+        #push!(trajp, Trajectory(SDDP.simulate(sddpprimal, 1)[2]))
 
         # update initial co-state
-        lb = updateinitialstate!(sddpdual, X0)
+        updateinitialstate!(sddpdual, X0)
         # run a CUPPS forward pass in dual
         SDDP.fwdcuts(sddpdual)
 
         # reupdate initial co-state
-        lb = updateinitialstate!(sddpdual, X0)
+        ub = updateinitialstate!(sddpdual, X0)
         tdual = toq() + td
 
         # save current iterations
-        push!(lbdual, lb)
+        push!(ubd, ub)
         push!(timedual, tdual)
 
         # if specified, compute statistical UB
         if iter % Δsimu == 0
-            cost = SDDP.simulate(sddpprimal, scen)[1]
-            push!(ubp, mean(cost))
-            push!(stdp, std(cost))
+            # OA MC
+            c_oa = SDDP.simulate(sddpprimal, scen)[1]
+            push!(ubp_mc, mean(c_oa))
+            push!(stdp, std(c_oa))
+            # IA MC - TODO NOT WORKING
+            # sddp_IA  = deepcopy(sddpprimal)
+            # V_dual = copy(sddp_IA.bellmanfunctions);
+            # # we init the JuMP model inside the primal SDDP object (we simulate in the primal, not in the dual!)
+            # init_innermodeler!(sddp_IA, V_dual)
+            # c_ia = SDDP.simulate(sddp_IA, scen)[1]
+            # push!(c_ia_mc, mean(c_ia))
+            # push!(stdia, std(c_ia))
         end
 
         if (iter % 10 == 0)
             print("Pass n\° ", iter)
-            @printf("\tLB: %.4e ", sddpprimal.stats.lowerbound)
-            @printf("\tUB: %.4e \n", lb)
+            @printf("\tLB-P: %.4e ", sddpprimal.stats.lowerbound)
+            @printf("\tUB-D: %.4e \n", ub)
         end
         # reload JuMP model to avoid memory leak
-        (iter % 10 == 0) && SDDP.reload!(sddpprimal)
+        (iter % 51 == 0) && SDDP.reload!(sddpprimal)
     end
     texec = toq()
     println("Total exec time: ", texec)
 
-    return lbdual, timedual, ubp, stdp
+
+    return ubd, timedual, ubp_mc, stdp, trajp #, c_ia_mc, sdtia
 end
