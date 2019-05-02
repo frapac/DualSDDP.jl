@@ -26,22 +26,27 @@ function mc!(sddp::SDDPInterface, Vs, ncuts::Int, scen)
     SDDP.reload!(sddp)
 
     # run Monte Carlo
-    cost = SDDP.simulate(sddpprimal, scen)[1]
+    cost = SDDP.simulate(sddp, scen)[1]
 
     return mean(cost), std(cost)
 end
 
 
-function computeprimalMC(sddp, ti, to, dt, nscen=1000)
-    v = copy(sddp.bellmanfunctions)
+function computeprimalMC(sddpprimal, ti, to, dt; nscen=1000,seed=2713)
+    V = copy(sddpprimal.bellmanfunctions)
     μmc = Float64[]
     σmc = Float64[]
 
-    srand(2713)
-    scen = SDDP.simulate_scenarios(sddpprimal.spmodel.noises, nscen)
+    model, params = sddpprimal.spmodel, sddpprimal.params
+    sddp = SDDPInterface(model, params, SDDP.IterLimit(to), verbose_it=10)
+
+    srand(seed)
+    scen = SDDP.simulate_scenarios(sddp.spmodel.noises, nscen)
     for it in ti:dt:to
         tic()
-        c, s = mc!(sddp, v, it, scen)
+        #c, s = mc!(sddpprimal, v, it, scen)
+        SDDP.reload!(sddp)
+        c, s = mc!(sddp,V,it,scen)
         tmc = toq()
         @printf("%s: %.3e", it, c)
         @printf("\t%.3e", s)
@@ -53,17 +58,17 @@ function computeprimalMC(sddp, ti, to, dt, nscen=1000)
 end
 
 
-function computedualMC(sddpdual, ti, to, dt, nscen=1000)
+function computedualMC(sddpprimal,sddpdual, ti, to, dt; nscen=1000,seed=2713)
     Vdual = copy(sddpdual.bellmanfunctions)
 
     model, params = sddpprimal.spmodel, sddpprimal.params
-    sddp = SDDPInterface(model, params, SDDP.IterLimit(MAX_ITER), verbose_it=10)
+    sddp = SDDPInterface(model, params, SDDP.IterLimit(to), verbose_it=10)
 
     v = copy(sddp.bellmanfunctions)
     μmc = Float64[]
     σmc = Float64[]
 
-    srand(2713)
+    srand(seed)
     scen = SDDP.simulate_scenarios(sddpprimal.spmodel.noises, nscen)
 
     for it in ti:dt:to

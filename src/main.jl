@@ -6,21 +6,22 @@
 
 srand(1111)
 
-include("src/dualSDDP.jl")
+include("dualSDDP.jl")
 
 # params
 SAVE   = false
 # 1: Primal SDDP   2: Dual SDDP    3: Mix primal / dual
-ALGO = 3
+ALGO = 1
 
 # define a production transport problem MPTS
-mpts = MPTS([:FRA, :GER], 3, 10)
+NAMES = [:FRA, :GER, :ESP, :UK, :PT, :ITA, :SUI, :BEL]
+mpts = MPTS(NAMES, 12, 10)
 
 # Init SDDP interface
 sddpprimal = initprimal(mpts)
 
 if ALGO == 1
-    ubp, stdp = runprimal!(sddpprimal)
+    ubp, stdp, t = runprimal!(sddpprimal)
 elseif ALGO == 2
     sddpdual = initdual(mpts, sddpprimal)
     lbdual, timedual = rundual!(sddpdual, sddpprimal)
