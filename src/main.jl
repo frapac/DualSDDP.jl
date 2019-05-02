@@ -21,7 +21,7 @@ mpts = MPTS(NAMES, 12, 10)
 sddpprimal = initprimal(mpts)
 
 if ALGO == 1
-    ubp, stdp, t = runprimal!(sddpprimal)
+    ubp, stdp, trajectories = runprimal!(sddpprimal)
 elseif ALGO == 2
     sddpdual = initdual(mpts, sddpprimal)
     lbdual, timedual = rundual!(sddpdual, sddpprimal)
