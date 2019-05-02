@@ -148,9 +148,11 @@ function runjoint!(sddpprimal, sddpdual; nbsimu=100, maxiterations=100,
     for iter in 1:maxiterations
         tic()
         # perform a mixed iteration between primal and dual SDDP
+
         td, traj = SDDP.iteration!(sddpprimal, sddpdual)
         # save primal trajectory
         push!(trajp, Trajectory(traj))
+
 
         # update initial co-state
         updateinitialstate!(sddpdual, X0)

@@ -32,7 +32,9 @@ function mc!(sddp::SDDPInterface, Vs, ncuts::Int, scen)
 end
 
 
-function computeprimalMC(sddpprimal, ti, to, dt; nscen=1000,seed=2713)
+
+function computeprimalMC(sddpprimal, ti, to, dt; nscen=1000, seed=2713)
+
     V = copy(sddpprimal.bellmanfunctions)
     μmc = Float64[]
     σmc = Float64[]
@@ -58,7 +60,8 @@ function computeprimalMC(sddpprimal, ti, to, dt; nscen=1000,seed=2713)
 end
 
 
-function computedualMC(sddpprimal,sddpdual, ti, to, dt; nscen=1000,seed=2713)
+function computedualMC(sddpprimal,sddpdual, ti, to, dt; nscen=1000, seed=2713)
+
     Vdual = copy(sddpdual.bellmanfunctions)
 
     model, params = sddpprimal.spmodel, sddpprimal.params
