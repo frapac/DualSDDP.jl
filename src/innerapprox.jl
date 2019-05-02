@@ -6,7 +6,7 @@
 ################################################################################
 
 "Build inner approx LBO with value function `V` inside JuMP model `m`."
-function build_inner_approx!(m, V; Lip = LIPSCHITZ)
+function build_inner_approx!(m, V; lipschitz = LIPSCHITZ)
     # m stores the initial model
     # future states
     xf = m[:xf]
@@ -24,7 +24,7 @@ function build_inner_approx!(m, V; Lip = LIPSCHITZ)
     # we build the inner approximation all in once
     @constraint(m, no1 .>= xf - x_alt ) #norm1
     @constraint(m, no1 .>= x_alt - xf )
-    @constraint(m, alpha == -sum(eta[i]*V.betas[i] for i in 1:ncuts) + Lip *sum(no1) )
+    @constraint(m, alpha == -sum(eta[i]*V.betas[i] for i in 1:ncuts) + lipschitz *sum(no1) )
     @constraint(m, x_alt .== sum(eta[i]*V.lambdas[i, :] for i in 1:ncuts))
 end
 
