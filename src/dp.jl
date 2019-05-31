@@ -116,6 +116,7 @@ function buildlp(model::SPModel, V, t::Int, trajectories)
     #= @constraint(m, y .== model.dynamics(t, x, u, w)) =#
     @constraint(m, -y + sum(α[i]*xfgrid[i] for i in 1:nd) .== 0)
 
+    # Lipschitz regularization of DP equations.
     @constraint(m, v .>= y - model.dynamics(t, x, u, w))
     @constraint(m, v .>= -y + model.dynamics(t, x, u, w))
     # Define objective function

@@ -32,26 +32,12 @@ elseif ALGO == 3
     timedual -= sddpprimal.stats.exectime
 elseif ALGO == 4
     include("src/dp.jl")
-    ubp, stdp,  trajs = runprimal!(sddpprimal, maxiterations=1000)
+    ubp, stdp,  trajs = runprimal!(sddpprimal, maxiterations=100)
     ubphilpott = []
-    for n in [50,100,200,300,400,500,600,700,800,900,1000]
+    for n in [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
         println(n)
         ub_p =  solvedp!(sddpprimal.spmodel, trajs[1:n])[1,1]
         println(ub_p)
         push!(ubphilpott , ub_p )
     end
 end
-
-
-### RESULTS
-#lbprimal = sddpprimal.stats.lower_bounds[end]
-
-# println("#"^70)
-# println("Results")
-# println("-------")
-# println("Primal LB:\t", lbprimal)
-# if ALGO >= 2
-#     ubdual = lbdual[end]
-#     println("Dual UB:\t", ubdual)
-#     println("Gap:\t", abs(lbprimal-ubdual)/lbprimal)
-# end
