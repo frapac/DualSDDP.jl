@@ -45,9 +45,9 @@ end
 
 """Change initial co-state in interface of dual SDDP."""
 function updateinitialstate!(sddpdual, x)
-    lb, p0 = dualbound(sddpdual, x)
+    ub, p0 = dualbound(sddpdual, x)
     sddpdual.spmodel.initialState = p0
-    return lb
+    return ub
 end
 
 

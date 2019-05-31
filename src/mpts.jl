@@ -132,12 +132,11 @@ function build_model(mpts::MPTS)
 
     # Build bounds:
     x_bounds = [(0, xub) for xub in mpts.XMAX]
-    u_bounds = vcat(
-                [(0, uub) for uub in mpts.UTURB],
-                [(0, Inf) for uub in mpts.UTURB],
-                [(0, tub) for tub in mpts.UTHERM],
-                [(0, Inf) for uub in mpts.UTURB],
-                [(-f, f) for f in mpts.QMAX])
+    u_bounds = vcat([(0, uub) for uub in mpts.UTURB],
+                    [(0, Inf) for uub in mpts.UTURB],
+                    [(0, tub) for tub in mpts.UTHERM],
+                    [(0, Inf) for uub in mpts.UTURB],
+                    [(-f, f) for f in mpts.QMAX])
 
     function finalcost(model, m)
         alpha = m[:alpha]
@@ -147,11 +146,11 @@ function build_model(mpts::MPTS)
         @JuMP.constraint(m, alpha == DATA["COST_HF"]*sum(z))
     end
 
-    model = SDDP.LinearSPModel(mpts.nstages,       # number of timestep
-                               u_bounds, # control bounds
-                               mpts.X0,       # initial state
-                               cost_t,   # cost function
-                               dynamic,  # dynamic function
+    model = SDDP.LinearSPModel(mpts.nstages, # number of timestep
+                               u_bounds,     # control bounds
+                               mpts.X0,      # initial state
+                               cost_t,       # cost function
+                               dynamic,      # dynamic function
                                mpts.laws,
                                Vfinal=finalcost,
                                eqconstr=constr

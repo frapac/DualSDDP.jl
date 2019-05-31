@@ -6,7 +6,10 @@
 ################################################################################
 ################################################################################
 
-SOLVER = Gurobi.GurobiSolver(OutputFlag=false, Threads=1)
+ SOLVER = Gurobi.GurobiSolver(OutputFlag=false, Threads=1)
+#= SOLVER = Xpress.XpressSolver(PRESOLVE=0, OUTPUTLOG=2) =#
+#= SOLVER = Clp.ClpSolver(LogLevel=0, PresolveType=0) =1# =#
+
 
 
 "Get SDDP parameters for StochDynamicProgramming."

@@ -6,7 +6,9 @@
 ################################################################################
 
 "Build inner approx LBO with value function `V` inside JuMP model `m`."
-function build_inner_approx!(m, V)
+
+function build_inner_approx!(m, V; lipschitz=LIPSCHITZ)
+
     # m stores the initial model
     # future states
     xf = m[:xf]
@@ -17,11 +19,17 @@ function build_inner_approx!(m, V)
 
     # define simplex Λ
     @variable(m, eta[1:ncuts] >= 0.)
+    @variable(m, no1[1:size(xf)[1]])
+    @variable(m, x_alt[1:size(xf)[1]])
     @constraint(m, sum(eta) == 1.)
 
     # we build the inner approximation all in once
-    @constraint(m, alpha == -sum(eta[i]*V.betas[i] for i in 1:ncuts))
-    @constraint(m, xf .== sum(eta[i]*V.lambdas[i, :] for i in 1:ncuts))
+    @constraint(m, no1 .>= xf - x_alt ) #norm1
+    @constraint(m, no1 .>= x_alt - xf )
+
+    @constraint(m, alpha == -sum(eta[i]*V.betas[i] for i in 1:ncuts) + lipschitz * sum(no1))
+
+    @constraint(m, x_alt .== sum(eta[i]*V.lambdas[i, :] for i in 1:ncuts))
 end
 
 
@@ -57,7 +65,7 @@ function build_joint_approx!(m, Vdual, Vprimal, ω)
     end
 
     # mix outer and inner approx.
-    @constraint(m, alpha == ω*αi + (1 - ω)*αo)
+    @constraint(m, alpha == ω * αi + (1 - ω) * αo)
 end
 
 function init_innermodeler!(sddp, Vs)
