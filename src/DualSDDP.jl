@@ -3,7 +3,9 @@
 # SDDP dual
 ################################################################################
 
-using Printf, DelimitedFiles
+module DualSDDP
+
+using Printf, DelimitedFiles, Random
 using Statistics, LinearAlgebra
 # optimization packages
 using JuMP, StochDynamicProgramming
@@ -30,3 +32,5 @@ include("sddp.jl")
 include("innerapprox.jl")
 # Philpott's lower bound
 include("dp.jl")
+
+end
