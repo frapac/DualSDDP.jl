@@ -58,12 +58,13 @@ end
 function solvelp(lpproblem, ξ)::Float64
     w = lpproblem[:w]
     JuMP.fix.(w, ξ)
-    status = solve(lpproblem)
-    if status ∉ [:Optimal, :Suboptimal]
+    JuMP.optimize!(lpproblem)
+    status = JuMP.termination_status(lpproblem)
+    if status ∉ [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
         println(lpproblem)
         error("OPT")
     end
-    return getobjectivevalue(lpproblem)
+    return JuMP.objective_value(lpproblem)
 end
 
 
@@ -90,31 +91,33 @@ function buildlp(model::SPModel, V, t::Int, trajectories)
     xfgrid = Array[traj.x[t+1, :] for traj in trajectories]
 
     nd = length(xfgrid)
-    m = Model(solver=SOLVER)
+    m = Model(SOLVER)
 
     nx = model.dimStates
     nu = model.dimControls
     nw = model.dimNoises
 
     # define variables in JuMP:
-    m.ext[:state] = @variable(m, x[i=1:nx] )
+    m.ext[:state] = @variable(m, x[i=1:nx])
     @variable(m, y[i=1:nx] )
     @variable(m, v[1:nx])
     @variable(m, model.ulim[i][1] <= u[i=1:nu] <= model.ulim[i][2])
     @variable(m, w[1:nw])
     # weights to approximate value function, in simplex
-    @variable(m, 0 <= α[1:nd] <= 1)
-    @constraint(m, sum(α) == 1)
+    @variable(m, 0 <= α[1:nd] <= 1.0)
+    @constraint(m, sum(α) == 1.0)
 
     # Supply == Demand.
     constr_t = get(model.equalityConstraints)
-    @constraint(m,  constr_t(t, x, u, w) .== 0.)
+    @constraint(m,  constr_t(t, x, u, w) .== 0.0)
 
     # code the dynamic in the model
     # ∑ α_i V_{t+1}_i - f_t(x, u, w) == 0
     # as x and w are given, we store them in the right hand side (here set to 0.)
     #= @constraint(m, y .== model.dynamics(t, x, u, w)) =#
-    @constraint(m, -y + sum(α[i]*xfgrid[i] for i in 1:nd) .== 0)
+    for i in 1:nx
+        @constraint(m, -y[i] + sum(α[j]*xfgrid[j][i] for j in 1:nd) == 0.0)
+    end
 
     # Lipschitz regularization of DP equations.
     @constraint(m, v .>= y - model.dynamics(t, x, u, w))

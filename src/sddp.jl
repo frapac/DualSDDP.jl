@@ -5,7 +5,6 @@
 # SDDP dual code.
 ################################################################################
 
-
 struct Trajectory
     x::Array{Float64, 2}
     Trajectory(x::Array{Float64, 2}) = new(x)
@@ -48,7 +47,7 @@ function runprimal!(sddpprimal; nbsimu=100, maxiterations=100,
 
     trajs = Trajectory[]
 
-    tic()
+    tic = time()
     for iter in 1:maxiterations
         # run a single SDDP iteration with StochDynamicProgramming
         SDDP.iteration!(sddpprimal)
@@ -64,12 +63,12 @@ function runprimal!(sddpprimal; nbsimu=100, maxiterations=100,
         (iter % 10 == 0) && SDDP.reload!(sddpprimal)
 
         if (iter % 10 == 0)
-            print("Pass n\° ", iter)
+            print("Pass n° ", iter)
             @printf("\tLB-P: %.4e ", sddpprimal.stats.lowerbound)
         end
     end
 
-    texec = toq()
+    texec = time() - tic
     println("Primal exec time: ", texec)
 
     return ubp, stdp, trajs
@@ -98,22 +97,22 @@ function rundual!(sddpdual, sddpprimal; nbsimu=100, maxiterations=100,
     timedual = Float64[]
     println("RUN DUAL SDDP")
     lb = updateinitialstate!(sddpdual, X0)
-    tic()
+    tic_loop = time()
     for iter in 1:maxiterations
-        tic()
+        tic = time()
         # Update initial costate
         lb = updateinitialstate!(sddpdual, X0)
 
         # Run forward an backward pass
         SDDP.iteration!(sddpdual)
-        tdual = toq()
+        tdual = time() - tic
 
         # save current iterations
         push!(lbdual, lb)
         push!(timedual, tdual)
         (iter % 10 == 0) && displayit(iter, lb)
     end
-    texec = toq()
+    texec = time() - tic_loop
     println("Dual exec time: ", texec)
     return lbdual, timedual
 end
@@ -142,17 +141,16 @@ function runjoint!(sddpprimal, sddpdual; nbsimu=100, maxiterations=100,
     println("RUN DUAL SDDP")
 
     # Time counter
-    tic()
+    tic_loop = time()
 
     # Run SDDP iterations
     for iter in 1:maxiterations
-        tic()
+        tic = time()
         # perform a mixed iteration between primal and dual SDDP
 
         td, traj = SDDP.iteration!(sddpprimal, sddpdual)
         # save primal trajectory
         push!(trajp, Trajectory(traj))
-
 
         # update initial co-state
         updateinitialstate!(sddpdual, X0)
@@ -161,7 +159,7 @@ function runjoint!(sddpprimal, sddpdual; nbsimu=100, maxiterations=100,
 
         # reupdate initial co-state
         ub = updateinitialstate!(sddpdual, X0)
-        tdual = toq() + td
+        tdual = time() - tic + td
 
         # save current iterations
         push!(ubd, ub)
@@ -184,16 +182,15 @@ function runjoint!(sddpprimal, sddpdual; nbsimu=100, maxiterations=100,
         end
 
         if (iter % 10 == 0)
-            print("Pass n\° ", iter)
+            print("Pass n° ", iter)
             @printf("\tLB-P: %.4e ", sddpprimal.stats.lowerbound)
             @printf("\tUB-D: %.4e \n", ub)
         end
         # reload JuMP model to avoid memory leak
         (iter % 51 == 0) && SDDP.reload!(sddpprimal)
     end
-    texec = toq()
+    texec = time() - tic_loop
     println("Total exec time: ", texec)
-
 
     return ubd, timedual, ubp_mc, stdp, trajp #, c_ia_mc, sdtia
 end

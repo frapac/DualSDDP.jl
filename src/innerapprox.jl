@@ -35,7 +35,7 @@ end
 
 "Build joint approx LBO with value function `V` inside JuMP model `m`."
 function build_joint_approx!(m, Vdual, Vprimal, ω)
-    @assert 0 <= ω <= 1
+    @assert 0.0 <= ω <= 1.0
 
     # m stores the initial model
     xf = m[:xf]
