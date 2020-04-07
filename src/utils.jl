@@ -6,8 +6,9 @@
 ################################################################################
 ################################################################################
 
- SOLVER = Gurobi.GurobiSolver(OutputFlag=false, Threads=1)
-#= SOLVER = Xpress.XpressSolver(PRESOLVE=0, OUTPUTLOG=2) =#
+ #= SOLVER = Gurobi.GurobiSolver(OutputFlag=false, Threads=1) =#
+SOLVER = optimizer_with_attributes(Xpress.Optimizer,
+                                   "PRESOLVE"=>0, "OUTPUTLOG"=>0)
 #= SOLVER = Clp.ClpSolver(LogLevel=0, PresolveType=0) =1# =#
 
 
@@ -27,13 +28,11 @@ function getparams(;maxit=50, nbsimu=1000, Δub=100, Δprune=100)
 end
 
 """Build incidence matrix and return flows' bounds."""
-function buildincidence{T}(connexion::Matrix{T})
+function buildincidence(connexion::Matrix{T}) where T
     nnodes = size(connexion, 1)
     narcs = floor(Int, sum(connexion .> 0.)/2)
-
     # incidence matrix
     A = zeros(Int, nnodes, narcs)
-
     ic = 0
     bounds = Float64[]
     for ix in 1:(nnodes-1), iy in (ix+1):nnodes

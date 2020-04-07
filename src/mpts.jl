@@ -72,8 +72,7 @@ getcost(t::Int, mpts::MPTS) = [zeros(mpts.nzones);
 function MPTSmatrix(mpts::MPTS)
     nzones, narcs = size(mpts.R)
 
-    I = eye(nzones)
-    Iq = eye(narcs)
+    Iq = I
     O = zeros(Float64, nzones, nzones)
     Oq = zeros(Float64, nzones, narcs)
     i = ones(Float64, nzones)
@@ -141,9 +140,9 @@ function build_model(mpts::MPTS)
     function finalcost(model, m)
         alpha = m[:alpha]
         xf = m[:xf]
-        z = @JuMP.variable(m, [1:nzones], lowerbound=0)
-        @JuMP.constraint(m, z[i=1:nzones] .>= mpts.X0 - xf)
-        @JuMP.constraint(m, alpha == DATA["COST_HF"]*sum(z))
+        @JuMP.variable(m, z[1:nzones] >= 0.0)
+        @JuMP.constraint(m, z .>= mpts.X0 .- xf)
+        @JuMP.constraint(m, alpha == DATA["COST_HF"] * sum(z))
     end
 
     model = SDDP.LinearSPModel(mpts.nstages, # number of timestep
@@ -212,7 +211,7 @@ function build_model_dual(mpts::MPTS, model, param, t)
                      mpts.XMAX - C*w[:, j];
                      C*w[:, j]]
 
-    m = Model(solver=param.SOLVER)
+    m = Model(param.OPTIMIZER)
     law = model.noises
 
     nx = model.dimStates
@@ -228,7 +227,8 @@ function build_model_dual(mpts::MPTS, model, param, t)
     @variable(m, -LIPSCHITZ <= xf[i=1:nx, j=1:ns] <= 0)
     @variable(m, alpha[1:ns])
 
-    m.ext[:cons] = @constraint(m, state_constraint, x .== 0)
+    @variable(m, x_constant[1:nx])
+    m.ext[:cons] = @constraint(m, state_constraint, x .== x_constant)
 
     # linking all samples to previous state
     @constraint(m, sum(πp[j]*(xf[:, j] + D'*u[:, j]) for j in 1:ns) .== x)

@@ -46,15 +46,11 @@ getpos(name::Symbol)=findfirst(DATA["ORDER"] .== name)
 "Load data corresponding to specified countries."
 function getglobalparams(names)
     nnodes = length(names)
-
     pos = getpos.(names)
-
     xini = DATA["XINI"][pos]
-
     # get number of controls
     nc = 4*nnodes
     nv = 1
-
     # NETWORK TOPOLOGY
     A, fexch = buildincidence(DATA["INCIDENCE"][pos, pos])
     # bounds on the state (here: dam)
@@ -64,6 +60,5 @@ function getglobalparams(names)
     utherm = [DATA["PMAX"][p] for p in pos]
     # thermal cost
     ctherm = DATA["czpl"][pos, 1]
-
     return s_bounds, uturb, utherm, xini, A, ctherm, fexch
 end

@@ -1,0 +1,9 @@
+[deps]
+Clustering = "aaaa29a8-35af-508c-8bc3-b662a17a0fe5"
+DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
+JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+StochDynamicProgramming = "f6024387-75e5-5fdf-b095-327b05c0905f"

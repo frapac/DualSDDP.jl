@@ -4,7 +4,8 @@
 # main code
 ################################################################################
 
-srand(1111)
+using Random
+Random.seed!(1111)
 
 include("src/dualSDDP.jl")
 
@@ -16,6 +17,7 @@ ALGO = 4
 
 # define a production transport problem MPTS
 mpts = MPTS([:FRA, :GER, :ESP, :UK, :PT, :ITA, :SUI, :BEL], 36, 10)
+#= mpts = MPTS([:FRA, :GER], 12, 10) =#
 
 # Init SDDP interface
 sddpprimal = initprimal(mpts)
@@ -31,8 +33,7 @@ elseif ALGO == 3
     # recalibrate dual time
     timedual -= sddpprimal.stats.exectime
 elseif ALGO == 4
-    include("src/dp.jl")
-    ubp, stdp,  trajs = runprimal!(sddpprimal, maxiterations=100)
+    ubp, stdp, trajs = runprimal!(sddpprimal, maxiterations=100)
     ubphilpott = []
     for n in [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
         println(n)

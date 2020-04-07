@@ -15,33 +15,28 @@ function initdual!(mpts, sddp)
     sddp.solverinterface = ms
 end
 
-
 """Compute dual upper bound with `max_p <x0, p> - D_0(p)`."""
 function dualbound(sddpdual, x)
     V = sddpdual.bellmanfunctions[1]
-
-    m = Model(solver=sddpdual.params.SOLVER)
-
+    m = Model(sddpdual.params.OPTIMIZER)
     @variable(m, θ)
     p = @variable(m, -LIPSCHITZ <= p[1:sddpdual.spmodel.dimStates] <= 0)
-
     for i in 1:V.numCuts
         lambda = vec(V.lambdas[i, :])
         @constraint(m, V.betas[i] + dot(lambda, p) <= θ)
     end
-
     @objective(m, Max, dot(x, p) - θ)
-    status = solve(m)
-
+    JuMP.optimize!(m)
+    status = JuMP.termination_status(m)
     # if solution is not optimal, raise an error
-    if status != :Optimal
+    if status != MOI.OPTIMAL
+        println(status)
         println(m)
-        println(getvalue(p))
+        println(JuMP.value.(p))
         error("Starting point not found in dual SDDP.")
     end
-    return getobjectivevalue(m), getvalue(p)
+    return JuMP.objective_value(m), JuMP.value.(p)
 end
-
 
 """Change initial co-state in interface of dual SDDP."""
 function updateinitialstate!(sddpdual, x)
@@ -50,27 +45,21 @@ function updateinitialstate!(sddpdual, x)
     return ub
 end
 
-
 """Get lowerbound if NaN"""
 function getlowerbound(sddpdual, p)
-
     Vt = sddpdual.bellmanfunctions[1]
-
-    m = Model(solver=sddpdual.params.SOLVER)
+    m = Model(sddpdual.params.OPTIMIZER)
     @variable(m, alpha)
-
     for i in 1:Vt.numCuts
         lambda = vec(Vt.lambdas[i, :])
         @constraint(m, Vt.betas[i] + dot(lambda, p) <= alpha)
     end
-
     @objective(m, Min, alpha)
-    solve(m)
-    return getvalue(alpha)
+    JuMP.optimize!(m)
+    return JuMP.value(alpha)
 end
 
-
 function displayit(it, lb)
-    print("Pass n\° ", it)
+    print("Pass n° ", it)
     @printf("\tLower-bound: %.4e \n", lb)
 end
